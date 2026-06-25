@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Consoleena — your page, as a terminal</title>
+<meta name="description" content="Drop one script tag. Get a Unix shell, Playwright automation, an AI agent, and one-prompt GitHub PRs — all running inside your browser tab."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ─── tokens ─────────────────────────────────────────── */
+:root {
+  --void:   #080810;
+  --deep:   #0E0E1C;
+  --panel:  #12121F;
+  --rail:   #1D1D30;
+  --stroke: #2A2A44;
+  --muted:  #4A4A6A;
+  --dim:    #7A7A9A;
+  --text:   #C8C8E0;
+  --bright: #EEEEFF;
+
+  --sig:    #00FF88;   /* phosphor green — the live signal colour */
+  --sig-dim:rgba(0,255,136,.12);
+  --sig-glow:0 0 14px rgba(0,255,136,.55);
+
+  --brand:  #6C63FF;   /* purple — brand continuity, used sparingly */
+  --brand-dim:rgba(108,99,255,.14);
+
+  --err:    #FF5566;
+  --warn:   #FFB830;
+
+  --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --maxw: 1200px;
+  --r: 10px;
+}
+
+/* ─── reset + base ───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: rgba(0,255,136,.22); }
+a { color: var(--sig); text-decoration: none; }
+a:hover { color: #fff; }
+:focus-visible { outline: 2px solid var(--sig); outline-offset: 3px; border-radius: 3px; }
+p { margin-bottom: 12px; }
+p:last-child { margin-bottom: 0; }
+
+/* ─── layout helpers ─────────────────────────────────── */
+.wrap    { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+.mono    { font-family: var(--mono); }
+.sig     { color: var(--sig); }
+.dim     { color: var(--dim); }
+.bright  { color: var(--bright); }
+
+/* ─── instrument-label section headers ───────────────── */
+/* The signature structural device: PCB silkscreen labels  */
+.inst-label {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 42px;
+}
+.inst-label::before, .inst-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--stroke);
+}
+.inst-label span {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--sig);
+  border: 1px solid var(--sig);
+  padding: 4px 14px;
+  border-radius: 3px;
+  background: var(--sig-dim);
+  box-shadow: var(--sig-glow);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 0 20px;
+}
+
+/* ─── navigation ─────────────────────────────────────── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  height: 56px;
+  background: rgba(8,8,16,.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--stroke);
+}
+header .wrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.brand {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand .prompt { color: var(--sig); font-size: 17px; line-height: 1; }
+.vtag {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--sig);
+  border: 1px solid var(--sig);
+  border-radius: 3px;
+  padding: 1px 7px;
+  letter-spacing: .08em;
+  opacity: .8;
+}
+nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+nav a { color: var(--dim); }
+nav a:hover { color: var(--bright); }
+.nav-gh {
+  color: var(--sig) !important;
+  border: 1px solid var(--sig);
+  padding: 5px 12px;
+  border-radius: var(--r);
+  background: var(--sig-dim);
+}
+.nav-gh:hover { background: rgba(0,255,136,.22) !important; color: #fff !important; }
+@media(max-width:680px){ nav .hs { display:none; } }
+
+/* ─── hero ───────────────────────────────────────────── */
+.hero {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 72px 0 56px;
+  position: relative;
+}
+/* oscilloscope grid backdrop — the aesthetic risk */
+.hero::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.hero-copy h1 {
+  font-family: var(--sans);
+  font-size: clamp(32px, 4.4vw, 58px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -.03em;
+  color: var(--bright);
+  margin-bottom: 20px;
+}
+.hero-copy h1 em {
+  font-style: normal;
+  color: var(--sig);
+}
+.hero-copy .sub {
+  color: var(--dim);
+  font-size: clamp(15px, 1.6vw, 18px);
+  max-width: 480px;
+  margin-bottom: 32px;
+  line-height: 1.7;
+}
+.hero-copy .sub strong { color: var(--text); font-weight: 500; }
+
+/* install strip */
+.install {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--panel);
+  margin-bottom: 28px;
+  max-width: 500px;
+}
+.install .lbl {
+  display: flex; align-items: center;
+  padding: 0 14px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted);
+  background: var(--deep);
+  border-right: 1px solid var(--stroke);
+  white-space: nowrap;
+}
+.install code {
+  flex: 1;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--sig);
+  padding: 13px 14px;
+  background: transparent;
+  border: none;
+  overflow-x: auto;
+  white-space: nowrap;
+  display: block;
+}
+.install button {
+  border: none;
+  border-left: 1px solid var(--stroke);
+  background: var(--deep);
+  color: var(--dim);
+  font-family: var(--mono); font-size: 11px;
+  padding: 0 16px;
+  cursor: pointer;
+}
+.install button:hover { color: var(--sig); background: var(--sig-dim); }
+
+/* stat row */
+.hero-stats {
+  display: flex; gap: 28px; flex-wrap: wrap;
+}
+.stat {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted);
+}
+.stat b { color: var(--sig); font-weight: 600; font-size: 15px; display: block; }
+
+/* ─── oscilloscope panel (hero right) ───────────────── */
+.scope {
+  background: var(--deep);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.scope-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--stroke);
+}
+.scope-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rail); }
+.scope-bar .dot.a { background: #3a2050; }
+.scope-title { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 6px; }
+.scope-live {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--sig);
+  display: flex; align-items: center; gap: 5px;
+}
+.scope-live .dot-live {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sig);
+  box-shadow: var(--sig-glow);
+  animation: blink-sig 1.4s ease infinite;
+}
+@keyframes blink-sig { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* canvas waveform */
+.wave-wrap {
+  padding: 14px 14px 4px;
+  background: var(--void);
+}
+canvas#wave {
+  display: block;
+  width: 100%; height: 80px;
+  image-rendering: pixelated;
+}
+.wave-labels {
+  display: flex; justify-content: space-between;
+  padding: 4px 14px 10px;
+  background: var(--void);
+}
+.wave-labels span {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+
+/* terminal body inside scope */
+.term-body {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.62;
+  padding: 16px 16px 8px;
+  height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #06060E;
+}
+.term-body::-webkit-scrollbar { width: 4px; }
+.term-body::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 2px; }
+.tl { display: block; margin: 1px 0; }
+.t-p { color: var(--sig); font-weight: 600; }
+.t-c { color: var(--text); }
+.t-d { color: var(--muted); }
+.t-ok { color: var(--sig); }
+.t-er { color: var(--err); }
+.t-w { color: var(--warn); }
+.t-b { color: var(--brand); }
+
+.term-input-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--stroke);
+  background: #06060E;
+}
+.term-input-row .t-p { font-size: 14px; }
+#hero-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--bright); font-family: var(--mono); font-size: 13px;
+}
+#hero-input::placeholder { color: var(--muted); }
+.cursor-blink {
+  display: inline-block; width: 7px; height: 14px;
+  background: var(--sig); vertical-align: -2px;
+  box-shadow: var(--sig-glow);
+  animation: cur 1.1s steps(1) infinite;
+}
+@keyframes cur { 50% { opacity:0; } }
+
+/* quick chips */
+.chips {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px 14px;
+  background: var(--deep);
+  border-top: 1px solid var(--stroke);
+}
+.chip {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--dim);
+  border: 1px solid var(--stroke);
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  background: var(--panel);
+}
+.chip:hover { border-color: var(--sig); color: var(--sig); background: var(--sig-dim); }
+
+@media(max-width:900px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero { min-height: auto; padding: 56px 0 40px; }
+}
+
+/* ─── USP band ───────────────────────────────────────── */
+.usp-band {
+  border-top: 1px solid var(--stroke);
+  padding: 80px 0;
+}
+.usp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+.usp-copy h2 {
+  font-size: clamp(26px, 3.5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1.08;
+  color: var(--bright);
+  margin-bottom: 18px;
+}
+.usp-copy h2 em { font-style: normal; color: var(--sig); }
+.usp-copy p { color: var(--dim); line-height: 1.75; margin-bottom: 14px; }
+.usp-copy p strong { color: var(--text); font-weight: 500; }
+
+/* filesystem tree — the USP visualised */
+.vfs {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.9;
+  background: var(--deep);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.55);
+  cursor: default;
+}
+.vfs .root { color: var(--bright); font-weight: 700; }
+.vfs .path { color: var(--sig); }
+.vfs .path.clickable { cursor: pointer; }
+.vfs .path.clickable:hover { text-decoration: underline; color: #fff; }
+.vfs .tree { color: var(--muted); }
+.vfs .note { color: var(--muted); font-size: 12px; margin-left: 4px; }
+.vfs-out {
+  margin-top: 14px;
+  border-top: 1px solid var(--stroke);
+  padding-top: 12px;
+  font-size: 12.5px;
+  color: var(--dim);
+  min-height: 48px;
+  transition: color .2s;
+}
+.vfs-out .res { color: var(--text); animation: fadein .25s ease; }
+@keyframes fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+
+/* four pillars */
+.pillars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-top: 56px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--stroke); /* gap colour */
+}
+.pillar {
+  background: var(--deep);
+  padding: 28px 26px;
+}
+.pillar .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--sig);
+  margin-bottom: 10px;
+  display: block;
+}
+.pillar h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--bright);
+  margin-bottom: 8px;
+  letter-spacing: -.02em;
+}
+.pillar p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+
+@media(max-width:880px) {
+  .usp-grid { grid-template-columns: 1fr; gap: 36px; }
+  .pillars { grid-template-columns: 1fr; }
+}
+
+/* ─── code blocks ────────────────────────────────────── */
+.cb {
+  background: var(--deep);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 0 20px;
+}
+.cb-bar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--stroke);
+}
+.cb-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rail); }
+.cb-bar .nm { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 3px; }
+.cb-bar .cp {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--stroke);
+  border-radius: 5px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.cb-bar .cp:hover { color: var(--sig); border-color: var(--sig); }
+.cb pre {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  padding: 16px 18px;
+  overflow-x: auto;
+  white-space: pre;
+  background: transparent;
+  border: none;
+  margin: 0;
+}
+/* minimal syntax tones */
+.ck { color: #88aaff; } /* keyword */
+.cs { color: var(--sig); } /* string */
+.cm { color: var(--muted); font-style: italic; } /* comment */
+.cf { color: #ffcb6b; } /* fn name */
+.cx { color: var(--text); } /* default */
+
+/* inline code */
+code {
+  font-family: var(--mono);
+  font-size: .88em;
+  background: rgba(108,99,255,.14);
+  border: 1px solid rgba(108,99,255,.3);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: #c0baff;
+}
+/* override inside cb pre */
+.cb pre code { background: none; border: none; padding: 0; font-size: inherit; color: inherit; }
+
+/* ─── docs ───────────────────────────────────────────── */
+.docs-band { padding: 72px 0 80px; border-top: 1px solid var(--stroke); }
+.docs-inner {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 56px;
+  align-items: start;
+}
+
+/* sidenav — filesystem tree style */
+.sidenav {
+  position: sticky; top: 76px;
+  font-family: var(--mono); font-size: 12px;
+}
+.sidenav .root-label {
+  color: var(--dim); font-size: 11px;
+  margin-bottom: 8px; display: block;
+}
+.sidenav ul { list-style: none; border-left: 1px solid var(--stroke); padding-left: 0; }
+.sidenav li a {
+  display: block;
+  color: var(--muted);
+  padding: 5px 0 5px 16px;
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  transition: color .15s, border-color .15s;
+}
+.sidenav li a:hover { color: var(--bright); }
+.sidenav li a.active { color: var(--sig); border-left-color: var(--sig); }
+
+/* doc sections */
+.doc-sec { padding-bottom: 56px; border-bottom: 1px solid var(--stroke); margin-bottom: 56px; }
+.doc-sec:last-child { border-bottom: none; margin-bottom: 0; }
+.doc-sec h2 {
+  font-size: 26px; font-weight: 700;
+  letter-spacing: -.025em;
+  color: var(--bright);
+  margin-bottom: 4px;
+}
+.doc-sec h2 .faint { color: var(--muted); font-weight: 400; }
+.doc-sec .blurb { color: var(--dim); margin: 8px 0 22px; max-width: 600px; }
+.doc-sec h3 {
+  font-family: var(--mono); font-size: 12px;
+  text-transform: uppercase; letter-spacing: .18em;
+  color: var(--sig); margin: 28px 0 12px;
+}
+
+/* command table */
+table.cmd {
+  width: 100%; border-collapse: collapse;
+  font-size: 14px; margin-bottom: 20px;
+}
+table.cmd th {
+  text-align: left;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+table.cmd td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(42,42,68,.6);
+  color: var(--dim); vertical-align: top;
+}
+table.cmd td:first-child { white-space: nowrap; }
+table.cmd td code { font-size: 12px; }
+
+/* note boxes */
+.note {
+  display: flex; gap: 12px;
+  background: var(--sig-dim);
+  border: 1px solid rgba(0,255,136,.22);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.65;
+}
+.note.warn {
+  background: rgba(255,184,48,.08);
+  border-color: rgba(255,184,48,.28);
+}
+.note .ic { font-family: var(--mono); color: var(--sig); font-weight: 700; flex-shrink: 0; }
+.note.warn .ic { color: var(--warn); }
+
+/* prototype card */
+.proto-card {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 22px;
+  margin: 10px 0 20px;
+}
+.proto-card .ptitle {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted); margin-bottom: 16px;
+}
+.proto-card label { display: grid; gap: 5px; font-size: 13px; color: var(--dim); margin-bottom: 12px; }
+.proto-card input, .proto-card select {
+  background: var(--deep); border: 1px solid var(--stroke);
+  border-radius: 8px; padding: 9px 11px;
+  color: var(--bright); font-family: var(--sans); font-size: 14px;
+}
+.proto-card input:focus, .proto-card select:focus { outline: 1px solid var(--sig); }
+.proto-card .chkrow {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 14px; color: var(--dim); margin-bottom: 14px;
+}
+.proto-card .acts { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  border-radius: 8px; padding: 9px 16px; cursor: pointer;
+  border: 1px solid var(--stroke); background: var(--rail); color: var(--text);
+  transition: border-color .15s, color .15s, background .15s;
+}
+.btn:hover { border-color: var(--sig); color: var(--sig); }
+.btn.primary { background: var(--sig); border-color: var(--sig); color: var(--void); }
+.btn.primary:hover { filter: brightness(1.08); }
+.proto-status { margin-top: 12px; font-family: var(--mono); font-size: 13px; color: var(--sig); min-height: 20px; }
+.proto-dash { display: none; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--sig); border-radius: 8px; background: var(--sig-dim); font-size: 14px; }
+.proto-dash.show { display: block; }
+
+@media(max-width:860px) {
+  .docs-inner { grid-template-columns: 1fr; gap: 20px; }
+  .sidenav { position: static; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; border-bottom: 1px solid var(--stroke); }
+  .sidenav .root-label { display: none; }
+  .sidenav ul { display: flex; border-left: none; }
+  .sidenav li a { border: 1px solid var(--stroke); border-radius: 5px; padding: 5px 11px; border-left-width: 1px; margin-left: 0; white-space: nowrap; }
+  .sidenav li a.active { border-color: var(--sig); }
+}
+
+/* ─── footer ─────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--stroke);
+  padding: 36px 0 56px;
+}
+footer .wrap {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  align-items: center; justify-content: space-between;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+}
+footer a { color: var(--dim); }
+footer a:hover { color: var(--bright); }
+.foot-links { display: flex; gap: 22px; }
+
+/* ─── scroll reveal ──────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .55s ease, transform .55s ease; }
+.reveal.in  { opacity: 1; transform: none; }
+@media(prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .cursor-blink { opacity: 1; }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* ══════════════════════════════════════════════════════
+   MASCOT — Consoleena
+   Floats in the corner, bobs, twirls on hover,
+   cycles through avatar/ images, shows speech bubble.
+   ══════════════════════════════════════════════════════ */
+#mascot-wrap {
+  position: fixed;
+  right: 28px;
+  bottom: 86px;           /* sits above the cona 🔮 toggle */
+  z-index: 2147483640;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  pointer-events: none;   /* children opt-in individually */
+  --mw: 88px;
+}
+
+/* speech bubble */
+#mascot-bubble {
+  pointer-events: none;
+  position: relative;
+  background: var(--deep);
+  border: 1px solid var(--sig);
+  border-radius: 12px 12px 12px 4px;
+  padding: 9px 13px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--sig);
+  white-space: nowrap;
+  box-shadow: 0 0 18px rgba(0,255,136,.22), var(--sig-glow);
+  opacity: 0;
+  transform: translateY(6px) scale(.94);
+  transition: opacity .25s ease, transform .25s ease;
+  margin-bottom: 8px;
+  max-width: 220px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.4;
+}
+#mascot-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 16px;
+  border: 7px solid transparent;
+  border-top-color: var(--sig);
+  border-bottom: 0;
+}
+#mascot-bubble.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* the avatar image */
+#mascot-img {
+  pointer-events: all;
+  width: var(--mw);
+  height: var(--mw);
+  object-fit: contain;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  /* float-bob */
+  animation: mascot-bob 3.8s ease-in-out infinite;
+  transition: filter .2s ease, transform .2s ease, border-color .2s ease;
+  filter: drop-shadow(0 6px 18px rgba(0,255,136,.28));
+}
+#mascot-img:hover {
+  border-color: var(--sig);
+  box-shadow: 0 0 22px rgba(0,255,136,.45);
+}
+
+/* bob */
+@keyframes mascot-bob {
+  0%,100% { transform: translateY(0)    rotate(0deg);   }
+  25%      { transform: translateY(-7px) rotate(-1.5deg); }
+  75%      { transform: translateY(-4px) rotate(1deg);   }
+}
+
+/* disappear */
+@keyframes mascot-exit {
+  0%   { opacity:1; transform: scale(1)   translateY(0);    filter: drop-shadow(0 6px 18px rgba(0,255,136,.3)); }
+  60%  { opacity:0; transform: scale(.4)  translateY(10px); filter: drop-shadow(0 0 0 transparent); }
+  100% { opacity:0; transform: scale(.4)  translateY(10px); }
+}
+/* re-appear with twirl */
+@keyframes mascot-enter {
+  0%   { opacity:0; transform: scale(.3)  rotate(-180deg) translateY(12px); filter: drop-shadow(0 0 0 transparent); }
+  70%  { opacity:1; transform: scale(1.1) rotate( 8deg)   translateY(-4px); filter: drop-shadow(0 6px 18px rgba(0,255,136,.5)); }
+  85%  { transform: scale(.95) rotate(-3deg); }
+  100% { opacity:1; transform: scale(1)   rotate(0deg)    translateY(0); }
+}
+/* hover wiggle — triggers on each hover entry */
+@keyframes mascot-wiggle {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(-10deg) scale(1.06); }
+  35%  { transform: rotate(12deg)  scale(1.08); }
+  55%  { transform: rotate(-7deg)  scale(1.05); }
+  75%  { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+#mascot-img.exiting {
+  animation: mascot-exit .55s ease forwards;
+}
+#mascot-img.entering {
+  animation: mascot-enter .7s cubic-bezier(.22,.68,0,1.28) forwards;
+}
+#mascot-img.wiggling {
+  animation: mascot-wiggle .5s ease;
+}
+
+/* idle random float variation — JS adds this class occasionally */
+@keyframes mascot-drift {
+  0%,100% { transform: translateY(0) rotate(0deg);    }
+  30%      { transform: translateY(-10px) rotate(2deg); }
+  60%      { transform: translateY(-5px)  rotate(-2deg); }
+}
+#mascot-img.drifting {
+  animation: mascot-drift 2.6s ease-in-out;
+}
+
+/* ─── section entrance animations ──────────────────────── */
+
+/* hero h1 — each word slides in */
+.hero-copy h1 .word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity .5s ease, transform .5s ease;
+}
+.hero-copy h1 .word.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* install strip shimmer */
+.install::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(0,255,136,.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3.2s linear infinite;
+  pointer-events: none;
+}
+.install { position: relative; overflow: hidden; }
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* stat counters — count up on enter */
+.stat b { transition: color .4s; }
+.stat.counted b { color: var(--sig); }
+
+/* VFS tree rows — stagger in */
+.vfs br + .tree, .vfs br + .path {
+  display: inline;
+}
+.vfs-row {
+  display: block;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity .4s ease, transform .4s ease;
+}
+.vfs-row.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* pillar cards — pop up on scroll */
+.pillar {
+  opacity: 0;
+  transform: translateY(20px) scale(.98);
+  transition: opacity .45s ease, transform .45s ease;
+}
+.pillar.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* code blocks — slide in from left */
+.cb {
+  opacity: 0;
+  transform: translateX(-14px);
+  transition: opacity .5s ease, transform .5s ease;
+}
+.cb.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* table rows — fade up staggered (JS adds .row-in class + delay) */
+table.cmd tr {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .35s ease, transform .35s ease;
+}
+table.cmd tr.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* nav brand — pulse once on load */
+@keyframes brand-pulse {
+  0%   { text-shadow: 0 0 0 rgba(0,255,136,0); }
+  50%  { text-shadow: 0 0 16px rgba(0,255,136,.7); }
+  100% { text-shadow: 0 0 0 rgba(0,255,136,0); }
+}
+.brand { animation: brand-pulse 2s ease 0.8s both; }
+
+/* scope border glow on load */
+@keyframes scope-glow {
+  0%   { box-shadow: 0 32px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 rgba(0,255,136,0); }
+  50%  { box-shadow: 0 32px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04), 0 0 32px rgba(0,255,136,.22); }
+  100% { box-shadow: 0 32px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 rgba(0,255,136,0); }
+}
+.scope { animation: scope-glow 3s ease 1.2s both; }
+
+/* chip hover lift */
+.chip {
+  transition: border-color .15s, color .15s, background .15s, transform .15s;
+}
+.chip:hover { transform: translateY(-2px); }
+
+/* footer links stagger */
+.foot-links a {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .4s ease, transform .4s ease;
+}
+.foot-links a.in { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════════════════════════ -->
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <span class="prompt">❯</span>consoleena
+      <span class="vtag">v2.0</span>
+    </div>
+    <nav>
+      <a href="#usp" class="hs">why it's different</a>
+      <a href="#docs" class="hs">docs</a>
+      <a href="#safety" class="hs">safety</a>
+      <a href="https://github.com/suryasticsai/Consoleena" target="_blank" rel="noopener" class="nav-gh">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+
+<!-- ══════════════ HERO ═════════════════════════════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-inner">
+
+      <!-- left: copy -->
+      <div class="hero-copy">
+        <h1>Your page.<br><em>As a terminal.</em></h1>
+        <p class="sub">
+          Drop one script tag. Every DOM node, stylesheet, global variable,
+          network call and console log becomes a <strong>file you can cat, grep and pipe.</strong>
+          Same shell drives Playwright-style automation, an AI agent, and one-prompt GitHub PRs.
+          No backend. No build step.
+        </p>
+
+        <div class="install">
+          <span class="lbl">&lt;script src&gt;</span>
+          <code id="cdn-url">cdn.jsdelivr.net/gh/suryasticsai/Consoleena@main/consoleena-v2.js</code>
+          <button onclick="copyInstall(this)">copy</button>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat"><b>0</b>dependencies</div>
+          <div class="stat"><b>1</b>script tag</div>
+          <div class="stat"><b>~92 KB</b>unminified</div>
+          <div class="stat"><b>MIT</b>license</div>
+        </div>
+      </div>
+
+      <!-- right: oscilloscope + live terminal -->
+      <div class="scope">
+        <div class="scope-bar">
+          <span class="dot a"></span><span class="dot"></span><span class="dot"></span>
+          <span class="scope-title">consoleena — this page</span>
+          <span class="scope-live" id="live-ind">
+            <span class="dot-live"></span>
+            <span id="live-txt">demo</span>
+          </span>
+        </div>
+
+        <!-- waveform — animates against live DOM node count -->
+        <div class="wave-wrap">
+          <canvas id="wave" height="80"></canvas>
+        </div>
+        <div class="wave-labels">
+          <span>DOM nodes</span>
+          <span id="wave-val">—</span>
+          <span>network req</span>
+        </div>
+
+        <!-- terminal output -->
+        <div class="term-body" id="term-out"></div>
+
+        <div class="term-input-row">
+          <span class="t-p">❯</span>
+          <input id="hero-input" placeholder="ls /  ·  cat /dom | grep button  ·  ? what is this page?" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="chips">
+          <span class="chip" data-cmd="ls /">ls /</span>
+          <span class="chip" data-cmd="cat /js/vars | grep -i version">grep version</span>
+          <span class="chip" data-cmd="find /dom -name button">find buttons</span>
+          <span class="chip" data-cmd="snapshot">snapshot</span>
+          <span class="chip" data-cmd="status">status</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ USP ══════════════════════════════════ -->
+<section class="usp-band" id="usp">
+  <div class="wrap">
+    <div class="inst-label"><span>[ USP ]</span></div>
+
+    <div class="usp-grid">
+      <div class="usp-copy">
+        <h2>The page <em>is</em><br>the filesystem.</h2>
+        <p>
+          Every other browser devtool, console library or inspector panel treats your app
+          as a black box to poke at. Consoleena does one thing no other drop-in script does:
+          it <strong>mounts your running page as a virtual Unix filesystem</strong>.
+        </p>
+        <p>
+          DOM, styles, globals, storage, network traffic, console logs — all become
+          <strong>readable paths</strong>. That single decision means every Unix reflex you already
+          have works on a live website. <code>cat /network | grep 401</code> finds
+          unauthorized requests instantly. <code>find /dom -name input</code> lists every
+          input element. No DevTools clicking required.
+        </p>
+        <p>
+          From that same shell, you drive a Playwright-style locator engine,
+          an LLM agent that plans and iterates, and a GitHub PR workflow —
+          all client-side, no server needed.
+        </p>
+        <p style="color:var(--muted);font-size:14px;">
+          Click any path in the tree →
+        </p>
+      </div>
+
+      <!-- interactive VFS tree -->
+      <div>
+        <div class="vfs" id="vfs-tree">
+          <span class="root">/</span>   <span class="note">← your live page, right now</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/page">page</span>         <span class="note">title · url · viewport</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/dom">dom</span>          <span class="note">every element, as text</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/css">css</span>          <span class="note">parsed stylesheet rules</span>
+<br><span class="tree">├─ </span><span class="path">js/</span>
+<br><span class="tree">│  ├─ </span><span class="path clickable" data-path="/js/vars">vars</span>       <span class="note">window globals</span>
+<br><span class="tree">│  ├─ </span><span class="path clickable" data-path="/js/functions">functions</span>  <span class="note">global functions</span>
+<br><span class="tree">│  └─ </span><span class="path clickable" data-path="/js/classes">classes</span>    <span class="note">global classes</span>
+<br><span class="tree">├─ </span><span class="path">storage/</span>
+<br><span class="tree">│  ├─ </span><span class="path clickable" data-path="/storage/local">local</span>      <span class="note">localStorage</span>
+<br><span class="tree">│  └─ </span><span class="path clickable" data-path="/storage/session">session</span>    <span class="note">sessionStorage</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/network">network</span>      <span class="note">captured fetch + XHR</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/console">console</span>      <span class="note">captured log/warn/error</span>
+<br><span class="tree">├─ </span><span class="path clickable" data-path="/errors">errors</span>       <span class="note">captured exceptions</span>
+<br><span class="tree">└─ </span><span class="path clickable" data-path="/perf">perf</span>         <span class="note">load timings</span>
+          <div class="vfs-out" id="vfs-out">
+            <span class="t-d">← click any path to cat it live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- four pillars -->
+    <div class="pillars reveal">
+      <div class="pillar">
+        <span class="k">// shell</span>
+        <h3>Real Unix pipes over your DOM</h3>
+        <p><code>ls</code>, <code>cat</code>, <code>grep</code>, <code>find</code>, <code>head</code>, <code>tail</code>, <code>wc</code> — and true <code>|</code> pipelines. The page is the filesystem; no special syntax to learn.</p>
+      </div>
+      <div class="pillar">
+        <span class="k">// automation</span>
+        <h3>Playwright locators, in the browser</h3>
+        <p>Auto-waiting chainable locators with <code>text=</code>, <code>role=</code>, <code>aria=</code>. <code>fill</code> uses the native setter, so React controlled inputs update for real.</p>
+      </div>
+      <div class="pillar">
+        <span class="k">// agent</span>
+        <h3>AI that operates the shell</h3>
+        <p>Prefix with <code>?</code>. The agent snapshots the page, plans commands, runs them, reads results, and iterates — no copy-pasting between ChatGPT and DevTools.</p>
+      </div>
+      <div class="pillar">
+        <span class="k">// ship</span>
+        <h3>One prompt → GitHub PR</h3>
+        <p>Describe a change. Consoleena asks the LLM for complete file contents, previews them, then creates the branch, commits, and opens the PR — entirely client-side.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════ DOCS ══════════════════════════════════ -->
+<section class="docs-band" id="docs">
+  <div class="wrap">
+    <div class="inst-label"><span>[ DOCS ]</span></div>
+    <div class="docs-inner">
+
+      <!-- sidebar -->
+      <aside class="sidenav">
+        <span class="root-label">~/consoleena</span>
+        <ul>
+          <li><a href="#install">install</a></li>
+          <li><a href="#shell-ref">shell</a></li>
+          <li><a href="#auto-ref">automation</a></li>
+          <li><a href="#record-ref">recorder</a></li>
+          <li><a href="#agent-ref">agent</a></li>
+          <li><a href="#pr-ref">github pr</a></li>
+          <li><a href="#api-ref">api</a></li>
+          <li><a href="#config-ref">config</a></li>
+          <li><a href="#safety">safety</a></li>
+        </ul>
+      </aside>
+
+      <!-- content -->
+      <div>
+
+        <!-- install -->
+        <div class="doc-sec" id="install">
+          <h2><span class="faint">/</span>install</h2>
+          <p class="blurb">One tag. Works on any page, any framework, no build step required.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">index.html</span><button class="cp">copy</button></div>
+<pre><span class="ck">&lt;script</span> <span class="cf">src</span>=<span class="cs">"consoleena-v2.js"</span><span class="ck">&gt;&lt;/script&gt;</span>
+<span class="cm">&lt;!-- or from jsDelivr CDN --&gt;</span>
+<span class="ck">&lt;script</span> <span class="cf">src</span>=<span class="cs">"https://cdn.jsdelivr.net/gh/suryasticsai/Consoleena@main/consoleena-v2.js"</span><span class="ck">&gt;&lt;/script&gt;</span></pre></div>
+          <p style="color:var(--dim)">Press <code>Ctrl+Shift+K</code> to open the panel. Both <code>window.Consoleena</code> and the short alias <code>window.cona</code> are registered.</p>
+        </div>
+
+        <!-- shell -->
+        <div class="doc-sec" id="shell-ref">
+          <h2><span class="faint">/</span>shell &amp; filesystem</h2>
+          <p class="blurb">The page is mounted as a virtual read-through filesystem. Navigate it with commands you already know; pipe between them with <code>|</code>.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">terminal</span><button class="cp">copy</button></div>
+<pre><span class="cm"># browse the filesystem</span>
+ls /
+tree -L 2 /js
+
+<span class="cm"># find things on the live page</span>
+cat /js/vars | grep -i token
+find /dom -name button
+cat /network | grep -v <span class="cs">" 200 "</span>   <span class="cm"># non-200 requests</span>
+
+<span class="cm"># mutate globals, call functions</span>
+set featureFlags.darkMode true
+run calculateTotal 40 2
+eval <span class="cs">'document.title = "patched"'</span></pre></div>
+
+          <h3>commands</h3>
+          <table class="cmd">
+            <tr><th>command</th><th>what it does</th></tr>
+            <tr><td><code>ls [-l] [path]</code></td><td>List contents of a VFS directory</td></tr>
+            <tr><td><code>cat &lt;path&gt;</code></td><td>Print a VFS file</td></tr>
+            <tr><td><code>find [path] -name &lt;pat&gt;</code></td><td>Find files/dirs by name</td></tr>
+            <tr><td><code>grep [-i -v -n -c] &lt;pat&gt;</code></td><td>Filter lines from a pipe or file</td></tr>
+            <tr><td><code>head / tail [-n N]</code></td><td>First / last N lines</td></tr>
+            <tr><td><code>wc [-l]</code></td><td>Count lines, words, chars</td></tr>
+            <tr><td><code>tree [-L depth]</code></td><td>Tree view of VFS</td></tr>
+            <tr><td><code>cd / pwd</code></td><td>Navigate the VFS</td></tr>
+            <tr><td><code>vars / funcs / logs / errors / net</code></td><td>Shortcuts to common paths</td></tr>
+            <tr><td><code>get / set / run / eval</code></td><td>Read/write globals, call functions, eval JS</td></tr>
+            <tr><td><code>alias name=cmd</code></td><td>Create a command alias</td></tr>
+            <tr><td><code>history</code></td><td>Command history (↑↓ to navigate)</td></tr>
+          </table>
+        </div>
+
+        <!-- automation -->
+        <div class="doc-sec" id="auto-ref">
+          <h2><span class="faint">/</span>automation</h2>
+          <p class="blurb">Playwright-style locators, auto-waiting, and React-safe <code>fill</code>. Selectors support CSS, <code>text=</code>, <code>role=</code>, and <code>aria=</code>.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">console</span><button class="cp">copy</button></div>
+<pre><span class="cm">// API — works in DevTools console or your test runner</span>
+<span class="ck">await</span> cona.$(<span class="cs">'#email'</span>).fill(<span class="cs">'ada@example.com'</span>)   <span class="cm">// React-safe</span>
+<span class="ck">await</span> cona.$(<span class="cs">'text=Sign in'</span>).click()
+<span class="ck">await</span> cona.page.waitForSelector(<span class="cs">'.dashboard'</span>)
+<span class="ck">await</span> cona.$(<span class="cs">'role=checkbox'</span>).check()
+<span class="ck">await</span> cona.$(<span class="cs">'#plan'</span>).selectOption(<span class="cs">'pro'</span>)
+<span class="ck">await</span> cona.$(<span class="cs">'.dashboard'</span>).assertVisible()</pre></div>
+
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">terminal (shell commands)</span><button class="cp">copy</button></div>
+<pre>fill #email ada@example.com
+click text=Sign in
+wait .dashboard
+assert .dashboard --visible</pre></div>
+
+          <!-- live prototype -->
+          <h3>live prototype — run against these real inputs</h3>
+          <div class="proto-card">
+            <div class="ptitle">▸ interact manually, or click "Watch Consoleena drive it"</div>
+            <label>Email<input type="email" id="p-email" placeholder="ada@example.com"/></label>
+            <label>Plan
+              <select id="p-plan">
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+                <option value="team">Team</option>
+              </select>
+            </label>
+            <div class="chkrow"><input type="checkbox" id="p-terms"> <span>I accept the terms</span></div>
+            <div class="acts">
+              <button class="btn primary" id="p-go">Sign in</button>
+              <button class="btn" id="p-auto">▶ Watch Consoleena drive it</button>
+            </div>
+            <div class="proto-status" id="p-status"></div>
+            <div class="proto-dash" id="p-dash">✅ <strong>Dashboard</strong> — automation complete. This div appeared because Consoleena filled, checked, and clicked.</div>
+          </div>
+        </div>
+
+        <!-- recorder -->
+        <div class="doc-sec" id="record-ref">
+          <h2><span class="faint">/</span>recorder → codegen</h2>
+          <p class="blurb">Record real interactions, export a runnable Playwright test or a Consoleena replay script.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">terminal</span><button class="cp">copy</button></div>
+<pre>record start        <span class="cm"># flip on the recorder — now click around the page</span>
+record stop
+codegen playwright  <span class="cm"># or:  codegen consoleena</span></pre></div>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">output — recorded.spec.ts</span><button class="cp">copy</button></div>
+<pre><span class="ck">import</span> { test, expect } <span class="ck">from</span> <span class="cs">'@playwright/test'</span>;
+
+<span class="cf">test</span>(<span class="cs">'recorded flow'</span>, <span class="ck">async</span> ({ page }) => {
+  <span class="ck">await</span> page.<span class="cf">goto</span>(<span class="cs">'https://your-app.test/'</span>);
+  <span class="ck">await</span> page.<span class="cf">locator</span>(<span class="cs">'#email'</span>).<span class="cf">fill</span>(<span class="cs">'ada@example.com'</span>);
+  <span class="ck">await</span> page.<span class="cf">locator</span>(<span class="cs">'text=Sign in'</span>).<span class="cf">click</span>();
+  <span class="ck">await</span> expect(page.<span class="cf">locator</span>(<span class="cs">'.dashboard'</span>)).<span class="cf">toBeVisible</span>();
+});</pre></div>
+        </div>
+
+        <!-- agent -->
+        <div class="doc-sec" id="agent-ref">
+          <h2><span class="faint">/</span>AI agent</h2>
+          <p class="blurb">Prefix any command with <code>?</code> (or switch the panel to <code>ai</code> mode). The agent snapshots the page, plans shell commands, observes the results, and iterates — up to <code>config.agent.maxSteps</code> rounds.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">panel or console</span><button class="cp">copy</button></div>
+<pre><span class="cm"># in the panel (prefix ?)</span>
+? log in as test@x.com / hunter2 and confirm the dashboard loads
+? what globals look like they might be auth tokens
+
+<span class="cm"># JS API</span>
+<span class="ck">await</span> cona.<span class="cf">ai</span>(<span class="cs">'fill the signup form and assert success'</span>)
+
+<span class="cm"># debug helpers</span>
+fix             <span class="cm"># diagnose recent JS errors via the LLM</span>
+fix --apply     <span class="cm"># diagnose and eval the proposed patch live</span>
+explain .card   <span class="cm"># explain an element in plain English</span></pre></div>
+
+          <div class="note">
+            <span class="ic">i</span>
+            <div>The default endpoint is keyless pollinations.ai — convenient but rate-limited. For real work, point it at any OpenAI-compatible API:<br><br>
+            <code>cona.config.llm.endpoint = 'https://api.openai.com/v1/chat/completions'</code><br>
+            <code>cona.config.llm.apiKey   = 'sk-…'</code></div>
+          </div>
+        </div>
+
+        <!-- pr -->
+        <div class="doc-sec" id="pr-ref">
+          <h2><span class="faint">/</span>GitHub PR from a prompt</h2>
+          <p class="blurb">Describe a change in plain English. Consoleena asks the LLM for complete file contents, shows a preview, then creates the branch, commits every file, and opens the pull request — through the GitHub REST API, entirely client-side.</p>
+          <div class="cb"><div class="cb-bar"><span class="dot"></span><span class="nm">terminal</span><button class="cp">copy</button></div>
+<pre><span class="cm"># one-time setup (PAT needs repo scope, or fine-grained Contents + PR write)</span>
+gh login ghp_yourtoken
+gh repo suryasticsai/Consoleena#main
+
+<span class="cm"># raise a PR from a description</span>
+pr <span class="cs">"add a footer with copyright and a GitHub link"</span>
+pr <span class="cs">"refactor the Cart class to use a Map internally"</span> --yes</pre></div>
+          <div class="note warn">
+            <span class="ic">!</span>
+            <div>The agent will not run <code>gh</code> or <code>pr</code> on its own — it proposes them and waits for confirmation, unless you set <code>CONFIG.agent.autoApprove = true</code>.</div>
+          </div>
+        </div>
+
+        <!-- api -->
+        <div class="doc-sec" id="api-ref">
+          <h2><span class="faint">/</span>API reference</h2>
+          <p class="blurb">Everything is on <code>cona</code> (alias of <code>Consoleena</code>).</p>
+          <table class="cmd">
+            <tr><th>member</th><th>description</th></tr>
+            <tr><td><code>cona.sh(line)</code></td><td>Run a shell command (prints to the panel)</td></tr>
+            <tr><td><code>cona.exec(line)</code></td><td>Run a command, resolve to plain-text output</td></tr>
+            <tr><td><code>cona.$(sel)</code></td><td>Return a Playwright-style <code>Locator</code></td></tr>
+            <tr><td><code>cona.page</code></td><td><code>goto</code>, <code>reload</code>, <code>waitForSelector</code>, <code>snapshot</code>, <code>screenshot</code>, <code>evaluate</code></td></tr>
+            <tr><td><code>cona.ai(task)</code></td><td>Run the autonomous agent</td></tr>
+            <tr><td><code>cona.fix(apply?)</code></td><td>Diagnose recent errors (pass <code>true</code> to eval the fix live)</td></tr>
+            <tr><td><code>cona.explain(sel?)</code></td><td>Explain an element or the last error in plain English</td></tr>
+            <tr><td><code>cona.record.start/stop/replay/codegen()</code></td><td>Recorder controls</td></tr>
+            <tr><td><code>cona.pr(text, opts)</code></td><td>Open a GitHub PR from a prompt</td></tr>
+            <tr><td><code>cona.gh.login/repo/whoami()</code></td><td>Configure GitHub access</td></tr>
+            <tr><td><code>cona.get/set/run/highlight()</code></td><td>Quick global + DOM helpers</td></tr>
+          </table>
+          <h3>Locator methods</h3>
+          <p style="color:var(--dim);font-size:14px;line-height:2">
+            <code>click</code> · <code>dblclick</code> · <code>hover</code> · <code>fill</code> · <code>type</code> · <code>press</code> · <code>clear</code> · <code>check</code> · <code>uncheck</code> · <code>selectOption</code> · <code>waitFor</code> · <code>scrollIntoView</code> · <code>text()</code> · <code>value()</code> · <code>getAttribute()</code> · <code>isVisible()</code> · <code>isChecked()</code> · <code>nth/first/last/count()</code> · <code>assertVisible</code> · <code>assertHidden</code> · <code>assertText</code> · <code>assertCount</code>
+          </p>
+        </div>
+
+        <!-- config -->
+        <div class="doc-sec" id="config-ref">
+          <h2><span class="faint">/</span>config</h2>
+          <p class="blurb">All settings live on <code>cona.config</code>. Endpoint, model and repo persist to <code>localStorage</code> via the ⚙ settings panel.</p>
+          <table class="cmd">
+            <tr><th>key</th><th>default</th></tr>
+            <tr><td><code>llm.endpoint</code></td><td><code>text.pollinations.ai/openai</code> (keyless)</td></tr>
+            <tr><td><code>llm.model</code></td><td><code>'openai'</code></td></tr>
+            <tr><td><code>llm.apiKey</code></td><td><code>null</code> — any OpenAI-compatible key</td></tr>
+            <tr><td><code>agent.maxSteps</code></td><td><code>6</code></td></tr>
+            <tr><td><code>agent.autoApprove</code></td><td><code>false</code> — gates <code>gh</code>/<code>pr</code></td></tr>
+            <tr><td><code>automation.defaultTimeout</code></td><td><code>5000</code> ms</td></tr>
+            <tr><td><code>github.token / owner / repo / base</code></td><td><code>null</code></td></tr>
+          </table>
+        </div>
+
+        <!-- safety -->
+        <div class="doc-sec" id="safety">
+          <h2><span class="faint">/</span>safety &amp; limits</h2>
+          <div class="note warn">
+            <span class="ic">!</span>
+            <div><strong>Dev / staging only.</strong> The shell executes arbitrary JS, mutates globals, and with a token pushes to GitHub. Never load it in production where real user data or credentials are present.</div>
+          </div>
+          <ul style="color:var(--dim);font-size:14.5px;line-height:2;padding-left:18px;margin-top:8px">
+            <li><strong style="color:var(--text)">Tokens live in the browser</strong> — visible to page scripts. Use a short-lived, minimally-scoped PAT. Persisting to localStorage is off by default.</li>
+            <li><strong style="color:var(--text)">AI features send page context</strong> to your LLM endpoint. Be mindful on pages with sensitive data.</li>
+            <li><strong style="color:var(--text)">Screenshots</strong> need <code>html2canvas</code> for real PNGs; SVG fallback otherwise.</li>
+            <li><strong style="color:var(--text)">Cross-origin stylesheets and iframes</strong> are not readable — browser security applies.</li>
+          </ul>
+        </div>
+
+      </div><!-- /doc-content -->
+    </div><!-- /docs-inner -->
+  </div>
+</section>
+
+
+<!-- ══════════════ FOOTER ════════════════════════════════ -->
+<footer>
+  <div class="wrap">
+    <span>consoleena v2.0.0 · MIT · Surya Sai Varakala</span>
+    <div class="foot-links">
+      <a href="https://github.com/suryasticsai/Consoleena" target="_blank" rel="noopener">GitHub</a>
+      <a href="#usp">why it's different</a>
+      <a href="#docs">docs</a>
+      <a href="#" onclick="window.scrollTo({top:0});return false;">top ↑</a>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ══════════════ GLOBALS (for shell to introspect) ═════ -->
+<script>
+var projectName   = 'Consoleena';
+var version       = '2.0.0';
+var featureFlags  = { darkMode: true, beta: false, maxItems: 25 };
+var userCount     = 1337;
+var apiToken      = 'demo_pk_not_a_real_secret';
+function greetUser(name){ return 'Hello, ' + (name || 'world') + '!'; }
+function calculateTotal(a, b){ return +a + +b; }
+async function fetchUsers(){ return ['ada', 'grace', 'linus']; }
+class Cart {
+  constructor(){ this.items = []; }
+  add(item){ this.items.push(item); return this.items.length; }
+  total(){ return this.items.length; }
+}
+window.Cart = Cart;
+</script>
+
+<!-- ══════════════ LOAD LIBRARY ══════════════════════════ -->
+<script src="consoleena-v2.js"></script>
+
+<!-- ══════════════ PAGE INTERACTIONS ════════════════════ -->
+<script>
+(function(){
+'use strict';
+
+/* ── prototype form ── */
+var pGo   = document.getElementById('p-go');
+var pAuto = document.getElementById('p-auto');
+var pSt   = document.getElementById('p-status');
+var pDash = document.getElementById('p-dash');
+
+pGo.addEventListener('click', function(){
+  var email = document.getElementById('p-email').value.trim();
+  if (!document.getElementById('p-terms').checked){ pSt.textContent = '⚠ accept the terms first'; return; }
+  if (!email){ pSt.textContent = '⚠ email is required'; return; }
+  pSt.textContent = 'signed in as ' + email;
+  pDash.classList.add('show');
+});
+
+pAuto.addEventListener('click', async function(){
+  if (!window.cona){ pSt.textContent = 'add consoleena-v2.js next to this file to run live automation'; return; }
+  pDash.classList.remove('show');
+  pSt.textContent = 'automating…';
+  try {
+    await cona.$('#p-email').fill('ada@example.com');
+    await cona.$('#p-terms').check();
+    await cona.$('#p-plan').selectOption('pro');
+    await cona.$('text=Sign in').click();
+    await cona.$('#p-dash').assertVisible();
+    pSt.textContent = '✓ done — automation passed';
+  } catch(e){ pSt.textContent = '✗ ' + e.message; }
+});
+
+/* ── copy buttons ── */
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('.cp, .install button');
+  if (!btn) return;
+  var text;
+  if (btn.classList.contains('cp')){
+    text = btn.closest('.cb').querySelector('pre').innerText;
+  } else {
+    text = document.getElementById('cdn-url').textContent;
+  }
+  if (!text) return;
+  navigator.clipboard && navigator.clipboard.writeText(text.trim());
+  var old = btn.textContent; btn.textContent = 'copied!';
+  setTimeout(function(){ btn.textContent = old; }, 1100);
+});
+
+function copyInstall(btn){
+  var text = document.getElementById('cdn-url').textContent;
+  navigator.clipboard && navigator.clipboard.writeText('https://' + text.trim());
+  btn.textContent = 'copied!';
+  setTimeout(function(){ btn.textContent = 'copy'; }, 1100);
+}
+window.copyInstall = copyInstall;
+
+/* ── oscilloscope waveform ── */
+var canvas = document.getElementById('wave');
+var ctx    = canvas && canvas.getContext('2d');
+var history = new Array(120).fill(0);
+var animId;
+
+function drawWave(){
+  if (!canvas || !ctx) return;
+  var W = canvas.offsetWidth, H = 80;
+  canvas.width  = W * (window.devicePixelRatio||1);
+  canvas.height = H * (window.devicePixelRatio||1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+
+  /* live signal: DOM node count, normalised */
+  var domCount = document.querySelectorAll('*').length;
+  var netCount = (window.cona && cona.config) ? 0 : 0; /* would come from state.network */
+  var raw = (domCount % 60) / 60; /* oscillate within range */
+  history.push(raw + (Math.sin(Date.now()/300)*0.08));
+  history.shift();
+
+  /* grid */
+  ctx.strokeStyle = 'rgba(0,255,136,.07)';
+  ctx.lineWidth   = 1;
+  for (var gx = 0; gx <= W; gx += W/6){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+  for (var gy = 0; gy <= H; gy += H/3){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+
+  /* glow pass */
+  ctx.save();
+  ctx.shadowBlur  = 12;
+  ctx.shadowColor = '#00FF88';
+  ctx.strokeStyle = 'rgba(0,255,136,.3)';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  for (var i = 0; i < history.length; i++){
+    var x = (i / (history.length-1)) * W;
+    var y = H - (history[i] * H * 0.7 + H * 0.1);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  /* crisp pass */
+  ctx.strokeStyle = '#00FF88';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  for (var j = 0; j < history.length; j++){
+    var xj = (j / (history.length-1)) * W;
+    var yj = H - (history[j] * H * 0.7 + H * 0.1);
+    j === 0 ? ctx.moveTo(xj, yj) : ctx.lineTo(xj, yj);
+  }
+  ctx.stroke();
+
+  document.getElementById('wave-val') && (document.getElementById('wave-val').textContent = domCount + ' nodes');
+  animId = requestAnimationFrame(drawWave);
+}
+
+/* pause when not visible */
+var waveObs = new IntersectionObserver(function(ents){
+  if (ents[0].isIntersecting){ if (!animId) drawWave(); }
+  else { cancelAnimationFrame(animId); animId = null; }
+});
+canvas && waveObs.observe(canvas);
+
+/* ── hero terminal ── */
+var termOut  = document.getElementById('term-out');
+var termIn   = document.getElementById('hero-input');
+var histArr  = [], histIdx = -1;
+var isLive   = false;
+var reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* simulated fallback output */
+var SIM = {
+  'ls /': 'page  dom  css  cookies  network  console  errors  perf  js/  storage/',
+  'tree -L 2 /js': '/js\n├─ vars\n├─ functions\n└─ classes',
+  'cat /js/vars | grep -i version': "version = '2.0.0'  (string)",
+  'cat /js/functions': 'greetUser(name)\ncalculateTotal(a, b)\nasync fetchUsers()',
+  'find /dom -name button': '(lists all <button> elements on this page)',
+  'snapshot': 'button  #p-go  — Sign in\nbutton  #p-auto  — Watch Consoleena drive it\ninput  #p-email  — ada@example.com\nselect  #p-plan',
+  'status': 'Consoleena v2.0.0\nmode: sh   cwd: /\nLLM: text.pollinations.ai (openai)\nvars:6 funcs:3',
+  'cat /js/vars | grep -i token': "apiToken = 'demo_pk_not_a_real_secret'  (string)"
+};
+
+function checkLive(){ isLive = !!(window.cona && typeof window.cona.exec === 'function'); var ind = document.getElementById('live-txt'); if (ind) ind.textContent = isLive ? 'live' : 'demo'; }
+checkLive();
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addLine(html, cls){
+  var d = document.createElement('span');
+  d.className = 'tl ' + (cls||'');
+  d.innerHTML = html;
+  termOut.appendChild(d);
+  termOut.appendChild(document.createTextNode('\n'));
+  termOut.scrollTop = termOut.scrollHeight;
+}
+
+function colorOutput(text){
+  return text.split('\n').map(function(l){
+    if (/^[✓✅]/.test(l)) return '<span class="t-ok">' + esc(l) + '</span>';
+    if (/^[✗❌]/.test(l) || /error:/i.test(l)) return '<span class="t-er">' + esc(l) + '</span>';
+    if (/^⚠|^warn/i.test(l)) return '<span class="t-w">' + esc(l) + '</span>';
+    return esc(l);
+  }).join('<br>');
+}
+
+async function execCmd(cmd, echo){
+  cmd = cmd.trim();
+  if (!cmd) return;
+  if (echo !== false) addLine('<span class="t-p">❯</span> <span class="t-c">' + esc(cmd) + '</span>');
+  if (cmd === 'clear'){ termOut.innerHTML = ''; return; }
+  checkLive();
+  var result;
+  if (isLive){
+    try { result = await window.cona.exec(cmd); }
+    catch(e){ result = '✗ ' + e.message; }
+  } else {
+    result = SIM[cmd];
+    if (result == null){
+      /* try head-only match */
+      var head = cmd.split(/\s+/)[0];
+      result = SIM[head] || "demo mode — add consoleena-v2.js next to this file to run '" + cmd + "' live";
+    }
+  }
+  if (result && result.trim()) addLine(colorOutput(result));
+}
+
+/* typewriter intro */
+function typeCmd(text, speed){
+  return new Promise(function(resolve){
+    var span = document.createElement('span');
+    span.className = 'tl';
+    span.innerHTML = '<span class="t-p">❯</span> <span class="t-c"></span><span class="cursor-blink"></span>';
+    termOut.appendChild(span);
+    termOut.appendChild(document.createTextNode('\n'));
+    var inner = span.querySelector('.t-c');
+    var cur   = span.querySelector('.cursor-blink');
+    var i = 0;
+    function tick(){
+      inner.textContent = text.slice(0,i);
+      termOut.scrollTop = termOut.scrollHeight;
+      if (i++ <= text.length){ setTimeout(tick, speed); }
+      else { cur && cur.remove(); resolve(); }
+    }
+    tick();
+  });
+}
+
+var INTRO = [
+  ['ls /', 36],
+  ['cat /js/vars | grep -i version', 30],
+  ['find /dom -name button', 32],
+  ['snapshot', 28],
+];
+
+async function intro(){
+  addLine('<span class="t-d"># Consoleena v2.0.0 — shell for this page</span>');
+  for (var i = 0; i < INTRO.length; i++){
+    var pair = INTRO[i];
+    if (reduced){
+      await execCmd(pair[0]);
+    } else {
+      await typeCmd(pair[0], pair[1]);
+      var r = SIM[pair[0]];
+      if (isLive){ try{ r = await window.cona.exec(pair[0]); }catch(e){ r = '✗ '+e.message; } }
+      if (r && r.trim()) addLine(colorOutput(r));
+      await new Promise(function(res){ setTimeout(res, 380); });
+    }
+  }
+  addLine('<span class="t-d"># your turn — type below, or use the 🔮 panel (Ctrl+Shift+K)</span>');
+}
+
+termIn.addEventListener('keydown', function(e){
+  if (e.key === 'Enter'){
+    var v = termIn.value.trim(); if (!v) return;
+    termIn.value = ''; histArr.push(v); histIdx = -1;
+    execCmd(v);
+  } else if (e.key === 'ArrowUp'){
+    if (histArr.length){ histIdx = histIdx < 0 ? histArr.length-1 : Math.max(0, histIdx-1); termIn.value = histArr[histIdx]; e.preventDefault(); }
+  } else if (e.key === 'ArrowDown'){
+    if (histIdx >= 0){ histIdx++; if (histIdx >= histArr.length){ histIdx=-1; termIn.value=''; } else termIn.value = histArr[histIdx]; e.preventDefault(); }
+  }
+});
+
+/* chips */
+document.getElementById('chips') && document.getElementById('chips').addEventListener('click', function(e){
+  var c = e.target.closest('.chip'); if (!c) return;
+  execCmd(c.dataset.cmd); termIn.focus();
+});
+
+/* VFS tree clicks */
+document.getElementById('vfs-tree') && document.getElementById('vfs-tree').addEventListener('click', async function(e){
+  var el = e.target.closest('.clickable'); if (!el) return;
+  var path = el.dataset.path;
+  var out = document.getElementById('vfs-out');
+  out.innerHTML = '<span class="t-d">cat ' + esc(path) + '…</span>';
+  var result;
+  if (isLive){
+    try{ result = await window.cona.exec('cat ' + path); }
+    catch(ex){ result = ex.message; }
+  } else {
+    var MOCK = {
+      '/page': 'title: Consoleena — your page, as a terminal\nurl: ' + location.href + '\nviewport: ' + window.innerWidth + 'x' + window.innerHeight,
+      '/dom': '(lists ' + document.querySelectorAll('*').length + ' elements on this page)',
+      '/js/vars': 'projectName = \'Consoleena\'  (string)\nversion = \'2.0.0\'  (string)\nfeatureFlags = {"darkMode":true,"beta":false}  (object)\nuserCount = 1337  (number)\napiToken = \'demo_pk_not_a_real_secret\'  (string)',
+      '/js/functions': 'greetUser(name)\ncalculateTotal(a, b)\nasync fetchUsers()',
+      '/js/classes': 'class Cart { add, total }',
+      '/storage/local': '(empty)',
+      '/storage/session': '(empty)',
+      '/network': '(no requests captured yet)',
+      '/console': '(no logs yet)',
+      '/errors': '(no errors)',
+      '/css': '(stylesheet rules — add consoleena-v2.js to see live)',
+      '/perf': 'load: ' + Math.round(performance.now()) + 'ms',
+    };
+    result = MOCK[path] || '(path: ' + path + ')';
+  }
+  out.innerHTML = '<span class="res">' + esc(result.slice(0,400)) + '</span>';
+});
+
+/* scrollspy */
+var navLinks = Array.prototype.slice.call(document.querySelectorAll('.sidenav a'));
+var sections = navLinks.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+var spy = new IntersectionObserver(function(entries){
+  entries.forEach(function(en){
+    if (en.isIntersecting){
+      navLinks.forEach(function(a){ a.classList.remove('active'); });
+      var idx = sections.indexOf(en.target);
+      if (idx > -1) navLinks[idx].classList.add('active');
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(function(s){ if (s) spy.observe(s); });
+
+/* reveal-on-scroll */
+var revEls = document.querySelectorAll('.reveal');
+var revObs = new IntersectionObserver(function(entries){
+  entries.forEach(function(en){ if (en.isIntersecting){ en.target.classList.add('in'); revObs.unobserve(en.target); } });
+}, { rootMargin: '0px 0px -8% 0px' });
+revEls.forEach(function(el){ revObs.observe(el); });
+
+/* kick off */
+if (document.readyState === 'complete') setTimeout(intro, 300);
+else window.addEventListener('load', function(){ setTimeout(intro, 300); });
+
+})();
+</script>
+<!-- ══════════════ MASCOT ════════════════════════════════ -->
+<!--
+  Avatars live at:  avatar/consoleena1.png  consoleena2.png  consoleena3.png …
+  Drop more files there and bump AVATAR_COUNT below.
+-->
+<div id="mascot-wrap" aria-hidden="true">
+  <div id="mascot-bubble"></div>
+  <img id="mascot-img" src="avatar/consoleena1.png" alt="Consoleena mascot"
+       onerror="this.src='https://api.dicebear.com/8.x/bottts-neutral/svg?seed=consoleena&backgroundColor=0e0e1c&eyes=happy&mouth=smile01'" />
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   MASCOT ENGINE
+   ══════════════════════════════════════════════════════════ */
+(function(){
+  var AVATAR_COUNT = 6;          // how many consoleena*.png files you have
+  var AVATAR_DIR   = 'avatar/';  // folder inside the repo
+  var QUIPS = [
+    '❯ ls /',
+    'cat /dom | grep you 👀',
+    'hello, dev! 🔮',
+    'find /bugs -type f',
+    'ready when you are ✨',
+    'grep -i "coffee" /brain',
+    '> git push origin main 🚀',
+    'cat /network | grep 401 😱',
+    'I ❤ open source',
+    '? what should I do next?',
+    'console.log("hi!")',
+    'chmod +x me.sh 🐚',
+    'sudo apt install fun',
+    '// TODO: be awesome ✓',
+  ];
+
+  var img    = document.getElementById('mascot-img');
+  var bubble = document.getElementById('mascot-bubble');
+  var current = 1;
+  var bubbleTimer, idleTimer, driftTimer;
+  var lastHover = 0;
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── avatar cycling ── */
+  function nextAvatar(){
+    current = (current % AVATAR_COUNT) + 1;
+    return AVATAR_DIR + 'consoleena' + current + '.png';
+  }
+
+  /* ── show bubble ── */
+  function showBubble(text, ms){
+    bubble.textContent = text;
+    bubble.classList.add('show');
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(function(){ bubble.classList.remove('show'); }, ms || 2600);
+  }
+
+  /* ── swap avatar with exit → enter animation ── */
+  function swapAvatar(src){
+    if (reduced){ img.src = src; return; }
+    img.classList.remove('entering','wiggling','drifting');
+    img.classList.add('exiting');
+    setTimeout(function(){
+      img.src = src;
+      img.classList.remove('exiting');
+      img.classList.add('entering');
+      setTimeout(function(){
+        img.classList.remove('entering');
+        img.style.animation = ''; // re-enable bob
+        img.style.animation = 'mascot-bob 3.8s ease-in-out infinite';
+      }, 720);
+    }, 540);
+  }
+
+  /* ── hover → disappear + reappear as new avatar ── */
+  img.addEventListener('mouseenter', function(){
+    var now = Date.now();
+    if (now - lastHover < 800) return; // debounce
+    lastHover = now;
+    var quip = QUIPS[Math.floor(Math.random() * QUIPS.length)];
+    showBubble(quip, 2200);
+    swapAvatar(nextAvatar());
+  });
+
+  /* ── click → bigger wiggle + special message ── */
+  img.addEventListener('click', function(){
+    if (reduced) return;
+    img.classList.remove('entering','exiting','drifting');
+    img.classList.add('wiggling');
+    setTimeout(function(){ img.classList.remove('wiggling'); img.style.animation = 'mascot-bob 3.8s ease-in-out infinite'; }, 520);
+    showBubble('✨ Ctrl+Shift+K for the full console!', 3200);
+  });
+
+  /* ── random idle behaviour ── */
+  function scheduleIdle(){
+    idleTimer = setTimeout(function(){
+      var roll = Math.random();
+      if (roll < 0.4){
+        // random quip
+        showBubble(QUIPS[Math.floor(Math.random() * QUIPS.length)], 2400);
+      } else if (roll < 0.65 && !reduced){
+        // drift
+        img.classList.remove('drifting','wiggling');
+        void img.offsetWidth; // reflow to restart animation
+        img.classList.add('drifting');
+        setTimeout(function(){ img.classList.remove('drifting'); img.style.animation = 'mascot-bob 3.8s ease-in-out infinite'; }, 2700);
+      } else if (roll < 0.80 && !reduced){
+        // silent avatar swap
+        swapAvatar(nextAvatar());
+      }
+      scheduleIdle();
+    }, 8000 + Math.random() * 14000); // 8-22 s
+  }
+  scheduleIdle();
+
+  /* ── greet on load ── */
+  setTimeout(function(){
+    showBubble('hello, dev! 🔮', 2800);
+  }, 1600);
+
+  /* ── hide when user scrolls way down (not needed there), reshow on scroll up ── */
+  var lastScroll = 0;
+  var mascotWrap = document.getElementById('mascot-wrap');
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY;
+    if (y > lastScroll + 400){
+      mascotWrap.style.opacity = '0';
+      mascotWrap.style.transform = 'translateY(20px)';
+      mascotWrap.style.transition = 'opacity .4s ease, transform .4s ease';
+    } else if (y < lastScroll - 60) {
+      mascotWrap.style.opacity = '1';
+      mascotWrap.style.transform = 'translateY(0)';
+    }
+    lastScroll = y;
+  }, { passive: true });
+
+})();
+
+/* ══════════════════════════════════════════════════════════
+   PAGE-WIDE ANIMATION ENGINE
+   ══════════════════════════════════════════════════════════ */
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── 1. Hero h1 word-by-word entrance ── */
+  (function(){
+    var h1 = document.querySelector('.hero-copy h1');
+    if (!h1) return;
+    var html = h1.innerHTML;
+    // wrap each word (skip <em> content which we handle as a unit)
+    h1.innerHTML = html.replace(/(<em>[^<]*<\/em>|[^\s<]+)/g, function(m){
+      return '<span class="word">' + m + '</span>';
+    });
+    var words = h1.querySelectorAll('.word');
+    if (reduced){ words.forEach(function(w){ w.classList.add('in'); }); return; }
+    setTimeout(function(){
+      words.forEach(function(w, i){ setTimeout(function(){ w.classList.add('in'); }, i * 90); });
+    }, 200);
+  })();
+
+  /* ── 2. Stat counters count-up ── */
+  (function(){
+    var stats = document.querySelectorAll('.stat');
+    var targets = { '0': 0, '1': 1, '~92 KB': null, 'MIT': null };
+    if (reduced){ stats.forEach(function(s){ s.classList.add('counted'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (!en.isIntersecting) return;
+        var b = en.target.querySelector('b');
+        var orig = b.textContent;
+        var num = parseFloat(orig.replace(/[^0-9.]/g,''));
+        if (!isNaN(num) && num > 0 && num < 200){
+          var start = 0, dur = 900, t0 = performance.now();
+          (function tick(now){
+            var p = Math.min((now - t0) / dur, 1);
+            var cur = Math.round(start + (num - start) * (1 - Math.pow(1-p, 3)));
+            b.textContent = orig.replace(/[\d.]+/, cur);
+            if (p < 1) requestAnimationFrame(tick);
+            else { b.textContent = orig; en.target.classList.add('counted'); }
+          })(t0);
+        } else {
+          en.target.classList.add('counted');
+        }
+        obs.unobserve(en.target);
+      });
+    }, { threshold: 0.5 });
+    stats.forEach(function(s){ obs.observe(s); });
+  })();
+
+  /* ── 3. Pillar cards stagger in ── */
+  (function(){
+    var pillars = document.querySelectorAll('.pillar');
+    if (reduced){ pillars.forEach(function(p){ p.classList.add('in'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (!en.isIntersecting) return;
+        setTimeout(function(){
+          var idx = Array.prototype.indexOf.call(pillars, en.target);
+          setTimeout(function(){ en.target.classList.add('in'); }, (idx % 2) * 120);
+        }, 0);
+        obs.unobserve(en.target);
+      });
+    }, { threshold: 0.15 });
+    pillars.forEach(function(p){ obs.observe(p); });
+  })();
+
+  /* ── 4. Code blocks slide in from left ── */
+  (function(){
+    var cbs = document.querySelectorAll('.cb');
+    if (reduced){ cbs.forEach(function(c){ c.classList.add('in'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (!en.isIntersecting) return;
+        en.target.classList.add('in');
+        obs.unobserve(en.target);
+      });
+    }, { threshold: 0.1 });
+    cbs.forEach(function(c){ obs.observe(c); });
+  })();
+
+  /* ── 5. Table rows staggered fade-up ── */
+  (function(){
+    var tables = document.querySelectorAll('table.cmd');
+    if (reduced){ document.querySelectorAll('table.cmd tr').forEach(function(r){ r.classList.add('in'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (!en.isIntersecting) return;
+        var rows = en.target.querySelectorAll('tr');
+        rows.forEach(function(r, i){ setTimeout(function(){ r.classList.add('in'); }, i * 55); });
+        obs.unobserve(en.target);
+      });
+    }, { threshold: 0.1 });
+    tables.forEach(function(t){ obs.observe(t); });
+  })();
+
+  /* ── 6. VFS tree rows staggered ── */
+  (function(){
+    var vfs = document.getElementById('vfs-tree');
+    if (!vfs || reduced) return;
+    // wrap each visible line as a .vfs-row
+    var lines = vfs.querySelectorAll('br');
+    lines.forEach(function(br, i){
+      var next = br.nextSibling;
+      if (!next) return;
+      var wrap = document.createElement('span');
+      wrap.className = 'vfs-row';
+      var nodes = [];
+      var cur = next;
+      while(cur && cur.nodeName !== 'BR'){
+        nodes.push(cur);
+        cur = cur.nextSibling;
+      }
+      br.parentNode.insertBefore(wrap, next);
+      nodes.forEach(function(n){ wrap.appendChild(n); });
+    });
+    var obs = new IntersectionObserver(function(ents){
+      if (!ents[0].isIntersecting) return;
+      var rows = vfs.querySelectorAll('.vfs-row');
+      rows.forEach(function(r, i){ setTimeout(function(){ r.classList.add('in'); }, i * 80 + 100); });
+      obs.unobserve(vfs);
+    }, { threshold: 0.1 });
+    obs.observe(vfs);
+  })();
+
+  /* ── 7. Existing .reveal elements ── */
+  (function(){
+    var els = document.querySelectorAll('.reveal');
+    if (reduced){ els.forEach(function(e){ e.classList.add('in'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){ if (en.isIntersecting){ en.target.classList.add('in'); obs.unobserve(en.target); } });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    els.forEach(function(e){ obs.observe(e); });
+  })();
+
+  /* ── 8. Footer links stagger ── */
+  (function(){
+    var links = document.querySelectorAll('.foot-links a');
+    if (reduced){ links.forEach(function(l){ l.classList.add('in'); }); return; }
+    var obs = new IntersectionObserver(function(ents){
+      if (!ents[0].isIntersecting) return;
+      links.forEach(function(l, i){ setTimeout(function(){ l.classList.add('in'); }, i * 80); });
+    }, { threshold: 0.5 });
+    var footer = document.querySelector('footer');
+    if (footer) obs.observe(footer);
+  })();
+
+  /* ── 9. Phosphor scan-line on the scope panel ── */
+  (function(){
+    var scope = document.querySelector('.scope');
+    if (!scope || reduced) return;
+    var line = document.createElement('div');
+    line.style.cssText = 'position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,255,136,.5),transparent);pointer-events:none;z-index:10;animation:scan-line 4s linear infinite;top:0';
+    scope.style.position = 'relative';
+    scope.appendChild(line);
+    var style = document.createElement('style');
+    style.textContent = '@keyframes scan-line{0%{top:0;opacity:.7}90%{top:100%;opacity:.1}100%{top:100%;opacity:0}}';
+    document.head.appendChild(style);
+  })();
+
+  /* ── 10. nav link hover underline animate ── */
+  (function(){
+    document.querySelectorAll('nav a:not(.nav-gh)').forEach(function(a){
+      a.style.position = 'relative';
+      var u = document.createElement('span');
+      u.style.cssText = 'position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--sig);transition:width .22s ease';
+      a.appendChild(u);
+      a.addEventListener('mouseenter', function(){ u.style.width = '100%'; });
+      a.addEventListener('mouseleave', function(){ u.style.width = '0'; });
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>
