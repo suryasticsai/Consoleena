@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consoleena – Developer RAG Assistant</title>
+  <style>
+    /* ---- Consoleena Toggle Button ---- */
+    #consoleena-toggle {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: linear-gradient(135deg, #6C63FF, #a78bfa);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 56px;
+      height: 56px;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 99999;
+      box-shadow: 0 4px 24px rgba(108, 99, 255, 0.5);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-weight: 700;
+    }
+    #consoleena-toggle:hover {
+      transform: scale(1.1) rotate(-5deg);
+      box-shadow: 0 6px 32px rgba(108, 99, 255, 0.7);
+    }
+
+    /* ---- Consoleena Panel ---- */
+    #consoleena-panel {
+      position: fixed;
+      bottom: 90px;
+      right: 24px;
+      width: 500px;
+      max-height: 600px;
+      background: #1a1a2e;
+      border-radius: 16px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+      z-index: 99998;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(108, 99, 255, 0.3);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #consoleena-panel.open {
+      display: flex;
+    }
+
+    /* ---- Header ---- */
+    #consoleena-header {
+      background: linear-gradient(135deg, #2d1b69, #6C63FF);
+      color: white;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #consoleena-header .title {
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #consoleena-header .title .badge {
+      background: rgba(255,255,255,0.2);
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #consoleena-header .controls {
+      display: flex;
+      gap: 6px;
+    }
+    #consoleena-header .controls button {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      transition: background 0.2s;
+    }
+    #consoleena-header .controls button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* ---- Messages Area ---- */
+    #consoleena-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      background: #0f0a1a;
+      min-height: 250px;
+      max-height: 400px;
+    }
+    #consoleena-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+    #consoleena-messages::-webkit-scrollbar-thumb {
+      background: #6C63FF;
+      border-radius: 2px;
+    }
+    #consoleena-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* ---- Message Styles ---- */
+    .consoleena-msg {
+      margin-bottom: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      animation: slideIn 0.25s ease;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .consoleena-msg.user {
+      background: #2d1b69;
+      color: #e8e5ff;
+      text-align: right;
+      border-bottom-right-radius: 2px;
+      margin-left: 20%;
+    }
+    .consoleena-msg.ai {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      border: 1px solid rgba(108, 99, 255, 0.2);
+      border-bottom-left-radius: 2px;
+      margin-right: 20%;
+    }
+    .consoleena-msg.ai .highlight {
+      color: #a78bfa;
+      font-weight: 600;
+    }
+    .consoleena-msg.ai .code {
+      background: #0a0a1a;
+      color: #f8f8f2;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      display: inline-block;
+    }
+    .consoleena-msg.ai .success {
+      color: #4ade80;
+    }
+    .consoleena-msg.ai .error {
+      color: #f87171;
+    }
+    .consoleena-msg.system {
+      background: rgba(255, 193, 7, 0.1);
+      border: 1px solid rgba(255, 193, 7, 0.3);
+      color: #ffd93d;
+      font-size: 12px;
+      font-style: italic;
+      text-align: center;
+      margin: 6px 0;
+    }
+    .consoleena-msg .source {
+      font-size: 10px;
+      color: #888;
+      margin-top: 6px;
+      display: block;
+      opacity: 0.7;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 4px;
+    }
+
+    /* ---- Input Area ---- */
+    #consoleena-input-area {
+      display: flex;
+      padding: 10px 12px;
+      border-top: 1px solid rgba(108, 99, 255, 0.15);
+      gap: 8px;
+      background: #0f0a1a;
+      flex-shrink: 0;
+    }
+    #consoleena-input {
+      flex: 1;
+      background: #1a1a2e;
+      border: 1px solid rgba(108, 99, 255, 0.2);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #e0e0e0;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #consoleena-input::placeholder {
+      color: #555;
+    }
+    #consoleena-input:focus {
+      border-color: #6C63FF;
+    }
+    #consoleena-send {
+      background: linear-gradient(135deg, #6C63FF, #a78bfa);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    #consoleena-send:hover {
+      transform: scale(1.03);
+      box-shadow: 0 4px 16px rgba(108, 99, 255, 0.4);
+    }
+
+    /* ---- Quick Actions ---- */
+    #consoleena-actions {
+      display: flex;
+      gap: 4px;
+      padding: 6px 12px 10px;
+      background: #0f0a1a;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(108, 99, 255, 0.05);
+      flex-shrink: 0;
+    }
+    #consoleena-actions button {
+      background: rgba(108, 99, 255, 0.1);
+      border: 1px solid rgba(108, 99, 255, 0.15);
+      color: #a78bfa;
+      border-radius: 12px;
+      padding: 2px 12px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Courier New', monospace;
+    }
+    #consoleena-actions button:hover {
+      background: rgba(108, 99, 255, 0.2);
+      transform: scale(1.02);
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 540px) {
+      #consoleena-panel {
+        width: calc(100vw - 40px);
+        right: 20px;
+        bottom: 80px;
+        max-height: 65vh;
+      }
+      #consoleena-messages {
+        max-height: 40vh;
+      }
+    }
+
+    /* ---- Demo Page Styles ---- */
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+      margin: 12px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .test-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+    }
+    .test-form input, .test-form textarea, .test-form select {
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .test-form input:focus, .test-form textarea:focus {
+      outline: 2px solid #6C63FF;
+      border-color: transparent;
+    }
+    .test-form button {
+      background: #6C63FF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .test-form button:hover {
+      background: #5a52d5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================ -->
+  <!-- DEMO PAGE CONTENT                                            -->
+  <!-- ============================================================ -->
+  <div class="test-container">
+    <h1>🧠 Consoleena</h1>
+    <p style="color: #666; font-size: 18px;">
+      Your <strong>console-powered RAG assistant</strong> — ask about your project's DOM, CSS, variables, and more!
+    </p>
+
+    <div class="card">
+      <h3>📄 Sample Project Context</h3>
+      <p>Consoleena has captured these sample variables for testing:</p>
+      
+      <div style="background: #1a1a2e; color: #f8f8f2; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; margin: 12px 0; overflow-x: auto;">
+        <span style="color: #a78bfa;">const</span> projectName = <span style="color: #4ade80;">"RAGina Consoleena"</span>;
+        <br />
+        <span style="color: #a78bfa;">const</span> version = <span style="color: #4ade80;">"1.0.0"</span>;
+        <br />
+        <span style="color: #a78bfa;">const</span> author = <span style="color: #4ade80;">"Surya Sai Varakala"</span>;
+        <br />
+        <span style="color: #a78bfa;">const</span> isOpenSource = <span style="color: #fbbf24;">true</span>;
+        <br />
+        <span style="color: #a78bfa;">const</span> features = [<span style="color: #4ade80;">"DOM Analysis"</span>, <span style="color: #4ade80;">"CSS Query"</span>, <span style="color: #4ade80;">"Variable Inspection"</span>, <span style="color: #4ade80;">"Console Override"</span>];
+        <br />
+        <span style="color: #a78bfa;">const</span> config = { theme: <span style="color: #4ade80;">"dark"</span>, language: <span style="color: #4ade80;">"en"</span>, debug: <span style="color: #fbbf24;">false</span> };
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button onclick="alert('Hello from the button!')" style="background: #6C63FF; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer;">
+          Click Me
+        </button>
+        <button onclick="document.querySelector('.card').style.background = '#f0edff'" style="background: transparent; border: 1px solid #6C63FF; color: #6C63FF; padding: 8px 20px; border-radius: 6px; cursor: pointer; margin-left: 8px;">
+          Change Card Color
+        </button>
+      </div>
+
+      <div style="margin-top: 16px; font-size: 14px; color: #888;">
+        💡 Click the <strong style="color: #6C63FF;">🔮</strong> button in the bottom-right corner to summon Consoleena!
+        <br />
+        💡 Or press <strong style="color: #6C63FF;">Ctrl+Shift+R</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🧪 Test Form</h3>
+      <form class="test-form" onsubmit="alert('Form submitted!'); return false;">
+        <input type="text" id="test-name" placeholder="Your name" />
+        <input type="email" id="test-email" placeholder="your@email.com" />
+        <textarea id="test-message" rows="3" placeholder="Your message"></textarea>
+        <select id="test-select">
+          <option value="option1">Option 1</option>
+          <option value="option2">Option 2</option>
+          <option value="option3">Option 3</option>
+        </select>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- CONSOLEENA SCRIPT                                            -->
+  <!-- ============================================================ -->
+  <script src="ragina-consoleena.js"></script>
+
+  <!-- ============================================================ -->
+  <!-- DEMO VARIABLES FOR TESTING                                   -->
+  <!-- ============================================================ -->
+  <script>
+    // These variables are for testing Consoleena's variable detection
+    const projectName = "RAGina Consoleena";
+    const version = "1.0.0";
+    const author = "Surya Sai Varakala";
+    const isOpenSource = true;
+    const features = ["DOM Analysis", "CSS Query", "Variable Inspection", "Console Override"];
+    const config = { theme: "dark", language: "en", debug: false };
+    
+    function greetUser() {
+      return `Welcome to ${projectName} v${version}!`;
+    }
+    
+    function calculateTotal(items) {
+      return items.reduce((sum, item) => sum + item.price, 0);
+    }
+    
+    class ProjectManager {
+      constructor(name) {
+        this.name = name;
+        this.tasks = [];
+      }
+      addTask(task) {
+        this.tasks.push(task);
+        return this.tasks.length;
+      }
+      getTasks() {
+        return this.tasks;
+      }
+    }
+  </script>
+</body>
+</html>
