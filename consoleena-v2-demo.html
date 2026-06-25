@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Consoleena Demo</title>
+<style>
+  :root { --accent: #6C63FF; --bg: #0f0e16; --card: #16141f; --line: #272338; --text: #e7e5f2; --dim: #9a96b3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 120px; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.5px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--dim); margin: 0 0 36px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 36px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; color: var(--dim); font-size: 13px; }
+  form { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 14px; }
+  label { display: grid; gap: 6px; font-size: 13px; color: var(--dim); }
+  input[type=text], input[type=email], select { background: #0f0e16; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; color: var(--text); font: inherit; }
+  .row { display: flex; align-items: center; gap: 9px; color: var(--text); font-size: 14px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; padding: 10px 16px; border: 1px solid var(--line); background: #1b1827; color: var(--text); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:hover { filter: brightness(1.08); }
+  #status { margin-top: 18px; min-height: 22px; color: var(--accent); font-size: 14px; }
+  .dashboard { display: none; margin-top: 20px; padding: 18px; border: 1px solid var(--accent); border-radius: 14px; background: rgba(108,99,255,.08); }
+  .dashboard.show { display: block; }
+  footer { margin-top: 40px; color: var(--dim); font-size: 12px; }
+  code { background: #1b1827; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Acme <span>Consoleena</span> Demo</h1>
+    <p class="sub">A throwaway page so you can drive Consoleena's shell, automation, recorder and agent.</p>
+
+    <div class="cards">
+      <div class="card" data-testid="card-shell"><h3>Unix shell</h3><p>Run <code>ls /</code>, <code>cat /js/vars</code>, pipes &amp; grep over the live page.</p></div>
+      <div class="card" data-testid="card-auto"><h3>Automation</h3><p>Click, fill and assert like Playwright — works on the form below.</p></div>
+      <div class="card" data-testid="card-ai"><h3>AI agent</h3><p>Type <code>? sign me up as a@b.com and confirm</code> in the panel.</p></div>
+    </div>
+
+    <form id="signup" autocomplete="off">
+      <label>Full name
+        <input type="text" id="name" name="name" placeholder="Ada Lovelace" />
+      </label>
+      <label>Email
+        <input type="email" id="email" name="email" placeholder="you@example.com" />
+      </label>
+      <label>Plan
+        <select id="plan" name="plan">
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+          <option value="team">Team</option>
+        </select>
+      </label>
+      <div class="row"><input type="checkbox" id="terms" /> <span>I accept the terms</span></div>
+      <div class="actions">
+        <button type="button" class="primary" id="submitBtn">Sign in</button>
+        <button type="button" id="resetBtn">Reset</button>
+        <button type="button" id="pingBtn">Ping API</button>
+      </div>
+    </form>
+
+    <div id="status"></div>
+    <div class="dashboard" id="dashboard"><strong>✅ Dashboard</strong> — welcome, <span id="who">friend</span>. You're on the <span id="planLabel">free</span> plan.</div>
+
+    <footer>Open the 🔮 panel (bottom-right) or press <code>Ctrl+Shift+K</code>. Then try <code>help</code>.</footer>
+  </div>
+
+  <script>
+    // --- some globals for Consoleena to introspect ---
+    var projectName = 'Acme Console';
+    var version = '0.9.0';
+    var featureFlags = { darkMode: true, beta: false, maxItems: 25 };
+    var userCount = 1337;
+
+    function greetUser(name) { return 'Hello, ' + (name || 'world') + '!'; }
+    function calculateTotal(a, b) { return Number(a) + Number(b); }
+    async function fetchUsers() { return ['ada', 'grace', 'linus']; }
+
+    class Cart {
+      constructor() { this.items = []; }
+      add(item) { this.items.push(item); return this.items.length; }
+      total() { return this.items.length; }
+    }
+    window.Cart = Cart;
+
+    // --- demo form behavior ---
+    const $ = (s) => document.querySelector(s);
+    $('#submitBtn').addEventListener('click', () => {
+      const email = $('#email').value.trim();
+      const name = $('#name').value.trim();
+      if (!$('#terms').checked) { $('#status').textContent = '⚠ Please accept the terms first.'; return; }
+      if (!email) { $('#status').textContent = '⚠ Email is required.'; return; }
+      $('#who').textContent = name || email;
+      $('#planLabel').textContent = $('#plan').value;
+      $('#status').textContent = 'Signed in as ' + email;
+      setTimeout(() => $('#dashboard').classList.add('show'), 250);
+      console.log('[demo] signed in', { email, name, plan: $('#plan').value });
+    });
+    $('#resetBtn').addEventListener('click', () => {
+      $('#signup').reset(); $('#dashboard').classList.remove('show'); $('#status').textContent = '';
+    });
+    $('#pingBtn').addEventListener('click', () => {
+      $('#status').textContent = 'Pinging…';
+      fetch('https://api.github.com/zen').then(r => r.text()).then(t => $('#status').textContent = 'API says: ' + t)
+        .catch(() => $('#status').textContent = 'Ping failed (offline?)');
+    });
+  </script>
+
+  <!-- Drop-in: keep consoleena.js next to this file -->
+  <script src="consoleena.js"></script>
+</body>
+</html>
