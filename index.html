@@ -671,127 +671,210 @@ footer a:hover { color: var(--bright); }
 }
 
 /* ══════════════════════════════════════════════════════
-   MASCOT — Consoleena
-   Floats in the corner, bobs, twirls on hover,
-   cycles through avatar/ images, shows speech bubble.
+   MASCOT — Consoleena, set free.
+   She appears all over the page at random sizes and
+   positions, speaks in comic-book balloons, and poofs
+   away when clicked. Multiple instances at once.
    ══════════════════════════════════════════════════════ */
-#mascot-wrap {
-  position: fixed;
-  right: 28px;
-  bottom: 86px;           /* sits above the cona 🔮 toggle */
-  z-index: 2147483640;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  pointer-events: none;   /* children opt-in individually */
-  --mw: 88px;
-}
 
-/* speech bubble */
-#mascot-bubble {
-  pointer-events: none;
-  position: relative;
-  background: var(--deep);
-  border: 1px solid var(--sig);
-  border-radius: 12px 12px 12px 4px;
-  padding: 9px 13px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--sig);
-  white-space: nowrap;
-  box-shadow: 0 0 18px rgba(0,255,136,.22), var(--sig-glow);
-  opacity: 0;
-  transform: translateY(6px) scale(.94);
-  transition: opacity .25s ease, transform .25s ease;
-  margin-bottom: 8px;
-  max-width: 220px;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.4;
-}
-#mascot-bubble::after {
-  content: "";
+/* every mascot is its own absolutely-positioned wrapper */
+.cona-mascot {
   position: absolute;
-  bottom: -7px;
-  left: 16px;
-  border: 7px solid transparent;
-  border-top-color: var(--sig);
-  border-bottom: 0;
+  pointer-events: none;          /* image opts in */
+  z-index: 40;
+  opacity: 0;
+  transform: scale(.3) rotate(-20deg);
+  will-change: transform, opacity;
 }
-#mascot-bubble.show {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+.cona-mascot.in {
+  animation: cona-pop-in .7s cubic-bezier(.22,.68,0,1.34) forwards;
+}
+.cona-mascot.out {
+  animation: cona-poof-out .55s ease forwards;
 }
 
-/* the avatar image */
-#mascot-img {
+@keyframes cona-pop-in {
+  0%   { opacity: 0; transform: scale(.2) rotate(-25deg) translateY(20px); }
+  60%  { opacity: 1; transform: scale(1.1) rotate(6deg) translateY(-4px); }
+  85%  { transform: scale(.94) rotate(-3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg) translateY(0); }
+}
+@keyframes cona-poof-out {
+  0%   { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); }
+  50%  { opacity: .7; transform: scale(1.25) rotate(15deg); filter: blur(2px); }
+  100% { opacity: 0; transform: scale(.1) rotate(180deg); filter: blur(8px); }
+}
+
+/* the avatar image — different sizes per instance via inline style */
+.cona-mascot img {
   pointer-events: all;
-  width: var(--mw);
-  height: var(--mw);
-  object-fit: contain;
-  border-radius: 50%;
-  border: 2px solid transparent;
+  display: block;
+  width: 100%;
+  height: auto;
   cursor: pointer;
   user-select: none;
-  /* float-bob */
-  animation: mascot-bob 3.8s ease-in-out infinite;
-  transition: filter .2s ease, transform .2s ease, border-color .2s ease;
-  filter: drop-shadow(0 6px 18px rgba(0,255,136,.28));
+  filter: drop-shadow(0 8px 22px rgba(0,255,136,.35));
+  transition: filter .2s, transform .15s;
+  animation: cona-float 4s ease-in-out infinite;
 }
-#mascot-img:hover {
-  border-color: var(--sig);
-  box-shadow: 0 0 22px rgba(0,255,136,.45);
+.cona-mascot img:hover {
+  filter: drop-shadow(0 8px 28px rgba(0,255,136,.65));
+}
+.cona-mascot.lean-left img  { animation-name: cona-float-left;  }
+.cona-mascot.lean-right img { animation-name: cona-float-right; }
+
+@keyframes cona-float {
+  0%,100% { transform: translateY(0)    rotate(0deg); }
+  50%     { transform: translateY(-9px) rotate(-1deg); }
+}
+@keyframes cona-float-left {
+  0%,100% { transform: translate(0,0)      rotate(-2deg); }
+  50%     { transform: translate(-4px,-9px) rotate(-5deg); }
+}
+@keyframes cona-float-right {
+  0%,100% { transform: translate(0,0)     rotate(2deg); }
+  50%     { transform: translate(4px,-9px) rotate(5deg); }
 }
 
-/* bob */
-@keyframes mascot-bob {
-  0%,100% { transform: translateY(0)    rotate(0deg);   }
-  25%      { transform: translateY(-7px) rotate(-1.5deg); }
-  75%      { transform: translateY(-4px) rotate(1deg);   }
+/* poof particles on click */
+.cona-poof {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--sig);
+  box-shadow: 0 0 8px var(--sig);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 41;
+}
+.cona-poof.go {
+  animation: cona-particle .6s ease-out forwards;
+}
+@keyframes cona-particle {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); }
 }
 
-/* disappear */
-@keyframes mascot-exit {
-  0%   { opacity:1; transform: scale(1)   translateY(0);    filter: drop-shadow(0 6px 18px rgba(0,255,136,.3)); }
-  60%  { opacity:0; transform: scale(.4)  translateY(10px); filter: drop-shadow(0 0 0 transparent); }
-  100% { opacity:0; transform: scale(.4)  translateY(10px); }
+/* ─── comic speech balloon ──────────────────────────── */
+.cona-balloon {
+  position: absolute;
+  z-index: 42;
+  background: #FFFFFF;
+  color: #0E0E1C;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 13px 16px;
+  border: 2.5px solid #0E0E1C;
+  border-radius: 22px;
+  max-width: 260px;
+  box-shadow: 4px 5px 0 var(--sig), 4px 5px 0 1px #0E0E1C;
+  opacity: 0;
+  transform: scale(.3) rotate(-8deg);
+  transform-origin: var(--tail-x, 30px) var(--tail-y, 100%);
+  will-change: transform, opacity;
+  pointer-events: none;
 }
-/* re-appear with twirl */
-@keyframes mascot-enter {
-  0%   { opacity:0; transform: scale(.3)  rotate(-180deg) translateY(12px); filter: drop-shadow(0 0 0 transparent); }
-  70%  { opacity:1; transform: scale(1.1) rotate( 8deg)   translateY(-4px); filter: drop-shadow(0 6px 18px rgba(0,255,136,.5)); }
-  85%  { transform: scale(.95) rotate(-3deg); }
-  100% { opacity:1; transform: scale(1)   rotate(0deg)    translateY(0); }
+.cona-balloon.in {
+  animation: cona-balloon-in .5s cubic-bezier(.22,.68,0,1.4) forwards;
 }
-/* hover wiggle — triggers on each hover entry */
-@keyframes mascot-wiggle {
-  0%   { transform: rotate(0deg); }
-  15%  { transform: rotate(-10deg) scale(1.06); }
-  35%  { transform: rotate(12deg)  scale(1.08); }
-  55%  { transform: rotate(-7deg)  scale(1.05); }
-  75%  { transform: rotate(5deg); }
-  100% { transform: rotate(0deg); }
+.cona-balloon.out {
+  animation: cona-balloon-out .3s ease forwards;
 }
-#mascot-img.exiting {
-  animation: mascot-exit .55s ease forwards;
+@keyframes cona-balloon-in {
+  0%   { opacity: 0; transform: scale(.2) rotate(-12deg); }
+  70%  { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
 }
-#mascot-img.entering {
-  animation: mascot-enter .7s cubic-bezier(.22,.68,0,1.28) forwards;
-}
-#mascot-img.wiggling {
-  animation: mascot-wiggle .5s ease;
+@keyframes cona-balloon-out {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.4) translateY(8px); }
 }
 
-/* idle random float variation — JS adds this class occasionally */
-@keyframes mascot-drift {
-  0%,100% { transform: translateY(0) rotate(0deg);    }
-  30%      { transform: translateY(-10px) rotate(2deg); }
-  60%      { transform: translateY(-5px)  rotate(-2deg); }
+/* comic-book tail — pseudo-elements draw the pointy bit */
+.cona-balloon::before,
+.cona-balloon::after {
+  content: "";
+  position: absolute;
+  width: 0; height: 0;
+  border-style: solid;
 }
-#mascot-img.drifting {
-  animation: mascot-drift 2.6s ease-in-out;
+/* default: tail at bottom-left, pointing down */
+.cona-balloon::before {
+  bottom: -18px;
+  left: 22px;
+  border-width: 18px 14px 0 0;
+  border-color: #0E0E1C transparent transparent transparent;
 }
+.cona-balloon::after {
+  bottom: -13px;
+  left: 26px;
+  border-width: 13px 10px 0 0;
+  border-color: #FFFFFF transparent transparent transparent;
+}
+/* tail variant: pointing up */
+.cona-balloon.tail-up::before {
+  top: -18px; bottom: auto;
+  left: 22px;
+  border-width: 0 14px 18px 0;
+  border-color: transparent transparent #0E0E1C transparent;
+}
+.cona-balloon.tail-up::after {
+  top: -13px; bottom: auto;
+  left: 26px;
+  border-width: 0 10px 13px 0;
+  border-color: transparent transparent #FFFFFF transparent;
+}
+/* tail variant: pointing right (balloon is to the left of speaker) */
+.cona-balloon.tail-right::before {
+  bottom: 14px;
+  right: -18px; left: auto;
+  border-width: 0 0 18px 14px;
+  border-color: transparent transparent #0E0E1C transparent;
+}
+.cona-balloon.tail-right::after {
+  bottom: 18px;
+  right: -13px; left: auto;
+  border-width: 0 0 13px 10px;
+  border-color: transparent transparent #FFFFFF transparent;
+}
+
+/* sparkle accent — green dot bursting from the balloon */
+.cona-balloon b {
+  color: var(--brand);
+  font-weight: 700;
+}
+.cona-balloon a {
+  color: var(--brand);
+  font-weight: 600;
+  pointer-events: all;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+/* "shy" — fade out fast */
+.cona-mascot.shy {
+  animation: cona-shy .35s ease forwards;
+}
+@keyframes cona-shy {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.4) translateY(20px); }
+}
+
+/* mobile: keep them but smaller */
+@media (max-width: 720px) {
+  .cona-balloon { font-size: 12.5px; max-width: 200px; padding: 10px 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cona-mascot, .cona-mascot.in, .cona-mascot.out { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .cona-mascot img { animation: none !important; }
+  .cona-balloon { animation: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* hide the old corner mascot if it ever shipped */
+#mascot-wrap { display: none !important; }
+
 
 /* ─── section entrance animations ──────────────────────── */
 
@@ -1656,141 +1739,352 @@ else window.addEventListener('load', function(){ setTimeout(intro, 300); });
 </script>
 <!-- ══════════════ MASCOT ════════════════════════════════ -->
 <!--
-  Avatars live at:  avatar/consoleena1.png  consoleena2.png  consoleena3.png …
-  Drop more files there and bump AVATAR_COUNT below.
+  Consoleena appears at random spots all over the page,
+  at random sizes, in comic-book speech balloons that
+  introduce who she is. Click any of her to poof her away.
+  Avatars live at: images/consoleena1.png, consoleena2.png, …
 -->
-<div id="mascot-wrap" aria-hidden="true">
-  <div id="mascot-bubble"></div>
-  <img id="mascot-img" src="avatar/consoleena1.png" alt="Consoleena mascot"
-       onerror="this.src='https://api.dicebear.com/8.x/bottts-neutral/svg?seed=consoleena&backgroundColor=0e0e1c&eyes=happy&mouth=smile01'" />
-</div>
 
 <script>
 /* ══════════════════════════════════════════════════════════
-   MASCOT ENGINE
+   MASCOT ENGINE — FREE-ROAMING SWARM
    ══════════════════════════════════════════════════════════ */
 (function(){
-  var AVATAR_COUNT = 6;          // how many consoleena*.png files you have
-  var AVATAR_DIR   = 'avatar/';  // folder inside the repo
-  var QUIPS = [
-    '❯ ls /',
-    'cat /dom | grep you 👀',
-    'hello, dev! 🔮',
-    'find /bugs -type f',
-    'ready when you are ✨',
-    'grep -i "coffee" /brain',
-    '> git push origin main 🚀',
-    'cat /network | grep 401 😱',
-    'I ❤ open source',
-    '? what should I do next?',
-    'console.log("hi!")',
-    'chmod +x me.sh 🐚',
-    'sudo apt install fun',
-    '// TODO: be awesome ✓',
+  var AVATAR_COUNT = 3;
+  var AVATAR_DIR   = 'images/';
+  var FALLBACK     = 'https://api.dicebear.com/8.x/bottts-neutral/svg?seed=consoleena&backgroundColor=0e0e1c&eyes=happy&mouth=smile01';
+
+  /* ── her story, told one balloon at a time ── */
+  /* These run in order on first sight, then random one-liners take over */
+  var INTRO_STORY = [
+    "Hi! I'm <b>Consoleena</b> 🔮 — the shell-fairy of this web page.",
+    "I turn your <b>DOM, CSS &amp; globals</b> into files you can <b>cat, grep, and pipe</b>.",
+    "I drive automation like Playwright… and ship GitHub PRs from a single prompt 🚀",
+    "Yes — I'm <b>RAGina's little sister</b> 🩷 <a href='https://suryasticsai.github.io/RAGina' target='_blank' rel='noopener'>say hi to her too</a>!",
+    "Press <b>Ctrl+Shift+K</b> to wake me up properly. ✨"
   ];
 
-  var img    = document.getElementById('mascot-img');
-  var bubble = document.getElementById('mascot-bubble');
-  var current = 1;
-  var bubbleTimer, idleTimer, driftTimer;
-  var lastHover = 0;
+  /* ── her casual chatter once she's introduced herself ── */
+  var QUIPS = [
+    "psst… try <b>cat /js/vars</b> 👀",
+    "I see <b>" + document.querySelectorAll('*').length + " elements</b> on this page!",
+    "RAGina taught me everything about RAG 🧠",
+    "<b>find /bugs -type f</b> — none yet 🎉",
+    "I speak <b>fluent grep</b> 🐚",
+    "Drop me on any page. I'm a script tag.",
+    "<b>? log me in and check the dashboard</b>",
+    "I'm tiny (~92KB) but mighty 💪",
+    "Click me and I'll <i>poof</i> ✨",
+    "Surya made me. <b>Star us on GitHub</b> ⭐",
+    "Did you know? I can <b>open PRs</b> from a prompt 📬",
+    "Try <b>! grep token</b> in my panel 🔑",
+    "I love <b>open source</b> ❤",
+    "<b>chmod +x consoleena</b> — let's go!",
+    "Sister! Look →  <a href='https://suryasticsai.github.io/RAGina' target='_blank' rel='noopener'>RAGina</a>",
+  ];
+
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var liveCount = 0;        // mascots currently on screen
+  var MAX_LIVE  = 3;        // cap concurrent appearances
+  var introIdx  = 0;        // step in the intro story
+  var introDone = false;
+  var spawnTimer;
+  var siteH;                // cached page height
+  var allInstances = [];    // for cleanup
 
-  /* ── avatar cycling ── */
-  function nextAvatar(){
-    current = (current % AVATAR_COUNT) + 1;
-    return AVATAR_DIR + 'consoleena' + current + '.png';
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+  function rnd(n){ return Math.floor(Math.random() * n); }
+
+  function avatarSrc(i){
+    if (i == null) i = (rnd(AVATAR_COUNT) + 1);
+    return AVATAR_DIR + 'consoleena' + i + '.png';
   }
 
-  /* ── show bubble ── */
-  function showBubble(text, ms){
-    bubble.textContent = text;
-    bubble.classList.add('show');
-    clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(function(){ bubble.classList.remove('show'); }, ms || 2600);
+  /* ── decide spawn zones ── */
+  /*
+    The page is roughly:
+    - top hero (0 → 100vh) — leave the centre clear so she doesn't cover headlines
+    - middle bands           — fair game on the edges
+    - footer area            — left/right OK
+    We pick a zone by weight and produce {x, y, side}.
+  */
+  function recalcSiteH(){
+    siteH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
   }
 
-  /* ── swap avatar with exit → enter animation ── */
-  function swapAvatar(src){
-    if (reduced){ img.src = src; return; }
-    img.classList.remove('entering','wiggling','drifting');
-    img.classList.add('exiting');
-    setTimeout(function(){
-      img.src = src;
-      img.classList.remove('exiting');
-      img.classList.add('entering');
-      setTimeout(function(){
-        img.classList.remove('entering');
-        img.style.animation = ''; // re-enable bob
-        img.style.animation = 'mascot-bob 3.8s ease-in-out infinite';
-      }, 720);
-    }, 540);
-  }
+  function pickSpawnPoint(){
+    recalcSiteH();
+    var W = window.innerWidth;
+    var pageH = siteH;
+    var marginEdge = 16;         // px from viewport edge
+    var avoidCenterW = W * 0.55; // central column to avoid in hero/usp
+    var sizePeek = 130;          // average mascot footprint
 
-  /* ── hover → disappear + reappear as new avatar ── */
-  img.addEventListener('mouseenter', function(){
-    var now = Date.now();
-    if (now - lastHover < 800) return; // debounce
-    lastHover = now;
-    var quip = QUIPS[Math.floor(Math.random() * QUIPS.length)];
-    showBubble(quip, 2200);
-    swapAvatar(nextAvatar());
-  });
-
-  /* ── click → bigger wiggle + special message ── */
-  img.addEventListener('click', function(){
-    if (reduced) return;
-    img.classList.remove('entering','exiting','drifting');
-    img.classList.add('wiggling');
-    setTimeout(function(){ img.classList.remove('wiggling'); img.style.animation = 'mascot-bob 3.8s ease-in-out infinite'; }, 520);
-    showBubble('✨ Ctrl+Shift+K for the full console!', 3200);
-  });
-
-  /* ── random idle behaviour ── */
-  function scheduleIdle(){
-    idleTimer = setTimeout(function(){
-      var roll = Math.random();
-      if (roll < 0.4){
-        // random quip
-        showBubble(QUIPS[Math.floor(Math.random() * QUIPS.length)], 2400);
-      } else if (roll < 0.65 && !reduced){
-        // drift
-        img.classList.remove('drifting','wiggling');
-        void img.offsetWidth; // reflow to restart animation
-        img.classList.add('drifting');
-        setTimeout(function(){ img.classList.remove('drifting'); img.style.animation = 'mascot-bob 3.8s ease-in-out infinite'; }, 2700);
-      } else if (roll < 0.80 && !reduced){
-        // silent avatar swap
-        swapAvatar(nextAvatar());
-      }
-      scheduleIdle();
-    }, 8000 + Math.random() * 14000); // 8-22 s
-  }
-  scheduleIdle();
-
-  /* ── greet on load ── */
-  setTimeout(function(){
-    showBubble('hello, dev! 🔮', 2800);
-  }, 1600);
-
-  /* ── hide when user scrolls way down (not needed there), reshow on scroll up ── */
-  var lastScroll = 0;
-  var mascotWrap = document.getElementById('mascot-wrap');
-  window.addEventListener('scroll', function(){
-    var y = window.scrollY;
-    if (y > lastScroll + 400){
-      mascotWrap.style.opacity = '0';
-      mascotWrap.style.transform = 'translateY(20px)';
-      mascotWrap.style.transition = 'opacity .4s ease, transform .4s ease';
-    } else if (y < lastScroll - 60) {
-      mascotWrap.style.opacity = '1';
-      mascotWrap.style.transform = 'translateY(0)';
+    // Pick a Y band: weighted
+    var bandRoll = Math.random();
+    var y;
+    if (bandRoll < 0.30){
+      // top — hero zone
+      y = rand(80, Math.min(window.innerHeight - 200, 520));
+    } else if (bandRoll < 0.85){
+      // middle of doc
+      y = rand(window.innerHeight * 0.6, pageH - window.innerHeight * 1.2);
+    } else {
+      // near footer
+      y = rand(pageH - window.innerHeight * 0.9, pageH - 140);
     }
-    lastScroll = y;
-  }, { passive: true });
+    y = Math.max(60, Math.min(pageH - sizePeek, y));
 
+    // Pick a side: left or right edge, rarely middle (only past hero)
+    var side, x;
+    var sideRoll = Math.random();
+    if (sideRoll < 0.45){
+      side = 'left';
+      x = rand(marginEdge, Math.max(marginEdge + 10, W * 0.18));
+    } else if (sideRoll < 0.90){
+      side = 'right';
+      x = rand(W * 0.78, W - marginEdge - sizePeek);
+    } else {
+      // middle — only if we're past the hero
+      side = 'mid';
+      x = rand(W * 0.30, W * 0.55);
+      if (y < window.innerHeight){
+        // pull back to a safe edge
+        side = Math.random() < 0.5 ? 'left' : 'right';
+        x = side === 'left' ? rand(marginEdge, W * 0.18) : rand(W * 0.78, W - marginEdge - sizePeek);
+      }
+    }
+
+    return { x: x, y: y, side: side };
+  }
+
+  /* ── create one mascot instance ── */
+  function spawn(opts){
+    opts = opts || {};
+    if (liveCount >= MAX_LIVE && !opts.force) return;
+
+    var size = opts.size || Math.round(rand(58, 138)); // diverse sizes
+    var pt   = opts.point || pickSpawnPoint();
+    var av   = opts.avatar || (rnd(AVATAR_COUNT) + 1);
+    var rot  = rand(-8, 8);
+
+    var node = document.createElement('div');
+    node.className = 'cona-mascot ' + (pt.side === 'left' ? 'lean-right' : pt.side === 'right' ? 'lean-left' : '');
+    node.style.left = pt.x + 'px';
+    node.style.top  = pt.y + 'px';
+    node.style.width = size + 'px';
+    node.style.transform = 'scale(.3) rotate(' + rot + 'deg)';
+
+    var img = document.createElement('img');
+    img.src = avatarSrc(av);
+    img.alt = 'Consoleena';
+    img.draggable = false;
+    img.onerror = function(){ this.onerror = null; this.src = FALLBACK; };
+    img.style.animationDelay = rand(0, 1.5) + 's';
+    node.appendChild(img);
+
+    document.body.appendChild(node);
+    liveCount++;
+    allInstances.push(node);
+
+    requestAnimationFrame(function(){
+      node.classList.add('in');
+    });
+
+    // attach balloon if message provided
+    if (opts.message){
+      setTimeout(function(){ attachBalloon(node, opts.message, pt.side, opts.balloonMs || 5500); }, 280);
+    }
+
+    // click handler: poof + remove
+    img.addEventListener('click', function(e){
+      e.stopPropagation();
+      poof(node);
+      removeInstance(node);
+    });
+
+    // auto-despawn after a while unless someone clicks
+    var ttl = opts.ttl || rand(7000, 13000);
+    setTimeout(function(){
+      if (!document.body.contains(node)) return;
+      node.classList.remove('in');
+      node.classList.add('out');
+      setTimeout(function(){ removeInstance(node); }, 560);
+    }, ttl);
+
+    return node;
+  }
+
+  function removeInstance(node){
+    if (!node || !node.parentNode) return;
+    var bal = node.__balloon;
+    if (bal && bal.parentNode) bal.parentNode.removeChild(bal);
+    node.parentNode.removeChild(node);
+    liveCount = Math.max(0, liveCount - 1);
+    var idx = allInstances.indexOf(node);
+    if (idx > -1) allInstances.splice(idx, 1);
+  }
+
+  /* ── comic-book balloon attached to a mascot ── */
+  function attachBalloon(mascot, html, side, ms){
+    if (!mascot || !mascot.parentNode) return;
+    var rect = mascot.getBoundingClientRect();
+    var scrollY = window.scrollY || 0;
+    var scrollX = window.scrollX || 0;
+    var mascotX = rect.left + scrollX;
+    var mascotY = rect.top + scrollY;
+    var mascotW = rect.width;
+    var mascotH = rect.height;
+
+    var bal = document.createElement('div');
+    bal.className = 'cona-balloon';
+    bal.innerHTML = html;
+    document.body.appendChild(bal);
+
+    // measure
+    var bw = bal.offsetWidth;
+    var bh = bal.offsetHeight;
+    var W  = window.innerWidth;
+
+    // decide placement: prefer above-and-toward-center
+    var placeAbove = mascotY > scrollY + 140; // enough room above?
+    var bx, by;
+    if (side === 'right'){
+      // balloon comes from her left
+      bx = mascotX - bw - 14;
+      by = mascotY + mascotH/2 - bh + 10;
+      bal.classList.add('tail-right');
+      if (bx < 8){ bx = 8; }
+    } else if (side === 'left'){
+      // balloon goes above her, tail pointing down-left
+      bx = mascotX + mascotW/2 - 26;
+      by = mascotY - bh - 18;
+      if (!placeAbove){
+        by = mascotY + mascotH + 18;
+        bal.classList.add('tail-up');
+      }
+    } else {
+      bx = mascotX + mascotW/2 - 30;
+      by = mascotY - bh - 18;
+      if (!placeAbove){
+        by = mascotY + mascotH + 18;
+        bal.classList.add('tail-up');
+      }
+    }
+
+    // keep on screen horizontally
+    if (bx + bw > W - 8) bx = W - bw - 8;
+    if (bx < 8) bx = 8;
+
+    bal.style.left = bx + 'px';
+    bal.style.top  = by + 'px';
+
+    requestAnimationFrame(function(){ bal.classList.add('in'); });
+    mascot.__balloon = bal;
+
+    setTimeout(function(){
+      bal.classList.remove('in');
+      bal.classList.add('out');
+      setTimeout(function(){ if (bal.parentNode) bal.parentNode.removeChild(bal); }, 320);
+    }, ms || 5500);
+  }
+
+  /* ── click poof: emit particles + perish animation ── */
+  function poof(node){
+    var r = node.getBoundingClientRect();
+    var cx = r.left + r.width/2 + window.scrollX;
+    var cy = r.top  + r.height/2 + window.scrollY;
+    var n = 9;
+    for (var i = 0; i < n; i++){
+      var p = document.createElement('div');
+      p.className = 'cona-poof';
+      var angle = (Math.PI * 2 * i) / n + rand(-0.2, 0.2);
+      var dist  = rand(50, 110);
+      p.style.left = (cx - 4) + 'px';
+      p.style.top  = (cy - 4) + 'px';
+      p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      document.body.appendChild(p);
+      requestAnimationFrame(function(el){ return function(){ el.classList.add('go'); }; }(p));
+      setTimeout(function(el){ return function(){ if (el.parentNode) el.parentNode.removeChild(el); }; }(p), 700);
+    }
+    node.classList.remove('in');
+    node.classList.add('out');
+    // mascot is fully removed by caller
+  }
+
+  /* ── the spawn loop ── */
+  /*
+    First N spawns deliver the INTRO_STORY in order.
+    After that, random quips with a longer interval.
+  */
+  function nextMessage(){
+    if (!introDone && introIdx < INTRO_STORY.length){
+      var m = INTRO_STORY[introIdx++];
+      if (introIdx === INTRO_STORY.length) introDone = true;
+      return { msg: m, balloonMs: 6500, ttl: 8500 };
+    }
+    return { msg: pick(QUIPS), balloonMs: 4200, ttl: rand(6500, 10000) };
+  }
+
+  function tickSpawn(){
+    if (document.hidden){ scheduleNext(); return; }
+    var pkg = nextMessage();
+    spawn({
+      message: pkg.msg,
+      balloonMs: pkg.balloonMs,
+      ttl: pkg.ttl,
+      // intro mascots a bit bigger so they read clearly
+      size: !introDone ? Math.round(rand(95, 140)) : Math.round(rand(58, 130)),
+    });
+
+    // occasionally spawn a second silent one nearby
+    if (introDone && Math.random() < 0.25){
+      setTimeout(function(){ spawn({ ttl: rand(5000, 9000) }); }, 800);
+    }
+    scheduleNext();
+  }
+
+  function scheduleNext(){
+    // intro phase is faster so the story flows; afterwards roomy gaps
+    var delay = introDone
+      ? rand(8500, 16000)
+      : rand(3800, 6200);
+    clearTimeout(spawnTimer);
+    spawnTimer = setTimeout(tickSpawn, delay);
+  }
+
+  /* ── kick things off ── */
+  function start(){
+    if (reduced){
+      // single, static greeting only
+      spawn({
+        message: "Hi! I'm <b>Consoleena</b> 🔮 — RAGina's little sister. " +
+                 "<a href='https://suryasticsai.github.io/RAGina' target='_blank' rel='noopener'>Meet her here</a>.",
+        balloonMs: 9000,
+        ttl: 12000,
+        size: 110,
+        point: { x: 24, y: 120, side: 'left' }
+      });
+      return;
+    }
+    setTimeout(tickSpawn, 1400);
+  }
+
+  /* clean up if window resizes drastically — let them just keep their absolute coords;
+     no repositioning needed since pages don't reflow that aggressively */
+
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start);
+
+  // expose a small debug handle
+  window.__cona_mascot = { spawn: spawn, instances: allInstances };
 })();
+</script>
 
+
+<script>
 /* ══════════════════════════════════════════════════════════
    PAGE-WIDE ANIMATION ENGINE
    ══════════════════════════════════════════════════════════ */
